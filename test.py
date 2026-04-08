@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
 
-page_id = 178020 # 136315
+page_id = 136315
 
 
 def sluggify(text: str) -> str:
@@ -223,7 +223,7 @@ class Game:
 
             result["api"][sluggify(graphics_api)] = {
                 "name": graphics_api,
-                "support": float(support) if support else "Unknown",
+                "support": (support if not support.isdigit() else float(support)) if support else "Unknown",
                 "notes": api_notes if api_notes else None,
             }
 

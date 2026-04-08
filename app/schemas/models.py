@@ -8,19 +8,19 @@ class Feature(BaseModel):
     notes: str | None
 
 
-class VideoData(BaseModel):
+class VideoResponse(BaseModel):
     name: str
     video: dict[str, Feature]
 
 
-class AudioData(BaseModel):
+class AudioResponse(BaseModel):
     name: str
     audio: dict[str, Feature]
 
 
 class ApiData(BaseModel):
     name: str
-    support: float
+    support: float | str
     notes: str | None
 
 
@@ -35,7 +35,7 @@ class MiddlewareData(BaseModel):
     middleware: str = Field(
         title="Game's middlewares",
         description="A markdown link with the middleware's name and it's respective PCGW's wiki",
-        examples="[SpeedTree](https://www.pcgamingwiki.com/wiki/SpeedTree)",
+        examples=["[SpeedTree](https://www.pcgamingwiki.com/wiki/SpeedTree)"],
     )
     notes: str | None
 
@@ -65,3 +65,4 @@ class InfoResponse(BaseModel):
     engines: list[str] | None
     released: dict[str, date]
     publishers: list[str] | None
+    taxonomy: TaxonomyData

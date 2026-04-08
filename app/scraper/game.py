@@ -205,7 +205,7 @@ class Game:
 
             result["api"][sluggify(graphics_api)] = {
                 "name": graphics_api,
-                "support": float(support) if support else "Unknown",
+                "support": (support if not support.isdigit() else float(support)) if support else "Unknown",
                 "notes": api_notes if api_notes else None,
             }
 
@@ -248,13 +248,4 @@ class Game:
                 }
 
         return result
-
-
-# if __name__ == "__main__":
-#     pcgw = PCGamingWiki()
-#     game = pcgw.get_game(page_id)
-#     print(json.dumps(game.api_middleware(), indent=4, ensure_ascii=False))
-#     print(json.dumps(game.video(), indent=4, ensure_ascii=False))
-#     print(json.dumps(game.audio(), indent=4, ensure_ascii=False))
-#     print(json.dumps(game.info(), indent=4, ensure_ascii=False))
 
