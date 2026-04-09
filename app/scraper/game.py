@@ -14,6 +14,7 @@ class Game:
         self._title = None
 
         self._soup = None
+        self._info_loaded = None
         self._page_loaded = False
 
     def download_page(self):
@@ -118,6 +119,9 @@ class Game:
         return cleaned
 
     def info(self) -> dict:
+        if self._info_loaded:
+            return self._info_loaded
+
         params = {
             "action": "cargoquery",
             "format": "json",
@@ -130,7 +134,9 @@ class Game:
         result = self.clean_cargo_query(response.json())
         taxonomy = self.get_taxonomy()
         result["taxonomy"] = taxonomy
-        return result
+        
+        self._info_loaded = result
+        return self._info_loaded
 
     def _get_table_rows(self, tag: str, table_name: str = None, head: bool = False):
         if table_name:
@@ -249,3 +255,17 @@ class Game:
 
         return result
 
+    def get_all(self) -> dict:
+        self.download_page()
+        api_mw_data = self.api_middleware()
+        
+        return {
+            "_id": self.pid,
+            "name": self.title,
+            "video": self.video().get("video", {}),
+            "audio": self.audio().get("audio", {}),
+            "info": self.info(),
+            "api": api_mw_data.get("api", {}),
+            "executable": api_mw_data.get("executable", {}),
+            "middleware": api_mw_data.get("middleware", {})
+        }
