@@ -11,5 +11,6 @@ wheels/
 
 # Miscellaneous
 .ruff_cache
+.uv_cache
 
 .env

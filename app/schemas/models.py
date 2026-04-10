@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, RootModel
 from datetime import date
+from beanie import Document
 
 
 class Feature(BaseModel):
@@ -66,3 +67,17 @@ class InfoResponse(BaseModel):
     released: dict[str, date]
     publishers: list[str] | None
     taxonomy: TaxonomyData
+
+
+class GameDocument(Document):
+    id: int = Field(alias="_id")
+    name: str
+    video: dict[str, Feature]
+    audio: dict[str, Feature]
+    info: InfoResponse
+    api: dict[str, ApiData]
+    executable: dict[str, ExecutableData]
+    middleware: dict[str, MiddlewareData]
+
+    class Settings:
+        collection_name = "games"

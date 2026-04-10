@@ -1,5 +1,5 @@
 import re
-import requests
+import httpx
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
 from app.scraper.utils import sluggify
@@ -8,7 +8,7 @@ class Game:
     BASE_URL = "https://www.pcgamingwiki.com/"
     API = "https://www.pcgamingwiki.com/w/api.php"
 
-    def __init__(self, pid: int, session: requests.Session):
+    def __init__(self, pid: int, session: httpx.AsyncClient):
         self.pid = pid
         self.session = session
         self._title = None
@@ -17,7 +17,7 @@ class Game:
         self._info_loaded = None
         self._page_loaded = False
 
-    def download_page(self):
+    async def download_page(self):
         if self._page_loaded:
             return
 
@@ -27,7 +27,7 @@ class Game:
             "pageid": f"{self.pid}",
             "prop": "text",
         }
-        response = self.session.get(self.API, params=params)
+        response = await self.session.get(self.API, params=params)
         response.raise_for_status()
 
         response_data = response.json().get("parse", {})
@@ -40,12 +40,14 @@ class Game:
 
     @property
     def soup(self) -> BeautifulSoup:
-        self.download_page()
+        if not self._page_loaded:
+            raise RuntimeError("Page not downloaded. You must 'await download_page()' first.")
         return self._soup
 
     @property
     def title(self) -> str:
-        self.download_page()
+        if not self._page_loaded:
+            raise RuntimeError("Page not downloaded. You must 'await download_page()' first.")
         return self._title
 
     def _clean_tags(self, td: Tag, sep: str = " ", strip: bool = True) -> str:
@@ -66,7 +68,7 @@ class Game:
 
             a.replace_with(
                 f"[{text}]({full_url})"
-            )  # discord compatible hyperlink embed
+            )  # Markdown syntax for hyperlink
 
         cleaned = td.get_text(separator=sep, strip=strip)
         return cleaned
@@ -118,7 +120,7 @@ class Game:
         del cleaned["released__precision"], cleaned["Available on"]
         return cleaned
 
-    def info(self) -> dict:
+    async def info(self) -> dict:
         if self._info_loaded:
             return self._info_loaded
 
@@ -130,7 +132,7 @@ class Game:
             "where": f'Infobox_game._pageID="{self.pid}"',
         }
 
-        response = self.session.get(self.API, params=params)
+        response = await self.session.get(self.API, params=params)
         result = self.clean_cargo_query(response.json())
         taxonomy = self.get_taxonomy()
         result["taxonomy"] = taxonomy
@@ -255,8 +257,8 @@ class Game:
 
         return result
 
-    def get_all(self) -> dict:
-        self.download_page()
+    async def get_all(self) -> dict:
+        await self.download_page()
         api_mw_data = self.api_middleware()
         
         return {
@@ -264,7 +266,7 @@ class Game:
             "name": self.title,
             "video": self.video().get("video", {}),
             "audio": self.audio().get("audio", {}),
-            "info": self.info(),
+            "info": await self.info(),
             "api": api_mw_data.get("api", {}),
             "executable": api_mw_data.get("executable", {}),
             "middleware": api_mw_data.get("middleware", {})

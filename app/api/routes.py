@@ -1,32 +1,38 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Depends
 from app.scraper.client import PCGamingWiki
 from app.schemas.models import (
     VideoResponse,
     AudioResponse,
     ApiMiddlewareResponse,
     InfoResponse,
+    GameDocument,
 )
-from app.database.connection import games_info
 
 router = APIRouter(prefix="/api/v1")
-pcgw = PCGamingWiki()
 
 
-def get_game_data(page_id: int) -> dict:
-    cached_game = games_info.find_one({"_id": page_id})
+def get_pcgw(request: Request) -> PCGamingWiki:
+    return PCGamingWiki(client=request.app.state.http_client)
+
+
+async def get_game_data(page_id: int, pcgw: PCGamingWiki) -> dict:
+    # beanie can query with the data model itself, neat stuff
+    cached_game = await GameDocument.get(page_id)
     if cached_game:
-        return cached_game
+        return cached_game.model_dump(by_alias=True)
 
     game = pcgw.get_game(pid=page_id)
-    all_data = game.get_all()
-    games_info.insert_one(all_data)
-    return all_data
+    all_data = await game.get_all()
+
+    validated_game = GameDocument(**all_data)
+    await validated_game.insert()
+    return validated_game.model_dump(by_alias=True)
 
 
 @router.get(path="/game/{page_id}/video", response_model=VideoResponse)
-def get_video(page_id: int):
+async def get_video(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)):
     try:
-        data = get_game_data(page_id)
+        data = await get_game_data(page_id, pcgw)
         return {"name": data["name"], "video": data.get("video", {})}
     except Exception as e:
         raise HTTPException(
@@ -35,9 +41,9 @@ def get_video(page_id: int):
 
 
 @router.get(path="/game/{page_id}/audio", response_model=AudioResponse)
-def get_audio(page_id: int):
+async def get_audio(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)):
     try:
-        data = get_game_data(page_id)
+        data = await get_game_data(page_id, pcgw)
         return {"name": data["name"], "audio": data.get("audio", {})}
     except Exception as e:
         raise HTTPException(
@@ -46,9 +52,9 @@ def get_audio(page_id: int):
 
 
 @router.get(path="/game/{page_id}/api-mw", response_model=ApiMiddlewareResponse)
-def get_api_middleware(page_id: int):
+async def get_api_middleware(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)):
     try:
-        data = get_game_data(page_id)
+        data = await get_game_data(page_id, pcgw)
         return {
             "name": data["name"],
             "api": data.get("api", {}),
@@ -63,9 +69,9 @@ def get_api_middleware(page_id: int):
 
 
 @router.get(path="/game/{page_id}/info", response_model=InfoResponse)
-def get_info(page_id: int):
+async def get_info(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)):
     try:
-        data = get_game_data(page_id)
+        data = await get_game_data(page_id, pcgw)
         return data.get("info", {})
     except Exception as e:
         raise HTTPException(
