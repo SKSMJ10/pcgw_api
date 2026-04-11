@@ -5,6 +5,7 @@ from app.schemas.models import (
     AudioResponse,
     ApiMiddlewareResponse,
     InfoResponse,
+    SearchResponse,
     GameDocument,
 )
 
@@ -27,6 +28,17 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki) -> dict:
     validated_game = GameDocument(**all_data)
     await validated_game.insert()
     return validated_game.model_dump(by_alias=True)
+
+
+@router.get(path="/search", response_model=SearchResponse)
+async def search(query: str, pcgw: PCGamingWiki = Depends(get_pcgw)):
+    try:
+        data = await pcgw.search_game(query)
+        return data
+    except Exception as e:
+        raise HTTPException(
+            status_code="404", detail=f"Failed to get the search results. {str(e)}"
+        )
 
 
 @router.get(path="/game/{page_id}/video", response_model=VideoResponse)

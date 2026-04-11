@@ -4,11 +4,11 @@ from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
 from app.scraper.utils import sluggify
 
-class Game:
-    BASE_URL = "https://www.pcgamingwiki.com/"
-    API = "https://www.pcgamingwiki.com/w/api.php"
 
-    def __init__(self, pid: int, session: httpx.AsyncClient):
+class Game:
+    def __init__(self, pid: int, session: httpx.AsyncClient, BASE_URL: str, API: str):
+        self.BASE_URL = BASE_URL
+        self.API = API
         self.pid = pid
         self.session = session
         self._title = None
@@ -41,13 +41,17 @@ class Game:
     @property
     def soup(self) -> BeautifulSoup:
         if not self._page_loaded:
-            raise RuntimeError("Page not downloaded. You must 'await download_page()' first.")
+            raise RuntimeError(
+                "Page not downloaded. You must 'await download_page()' first."
+            )
         return self._soup
 
     @property
     def title(self) -> str:
         if not self._page_loaded:
-            raise RuntimeError("Page not downloaded. You must 'await download_page()' first.")
+            raise RuntimeError(
+                "Page not downloaded. You must 'await download_page()' first."
+            )
         return self._title
 
     def _clean_tags(self, td: Tag, sep: str = " ", strip: bool = True) -> str:
@@ -66,9 +70,7 @@ class Game:
             else:
                 full_url = href
 
-            a.replace_with(
-                f"[{text}]({full_url})"
-            )  # Markdown syntax for hyperlink
+            a.replace_with(f"[{text}]({full_url})")  # Markdown syntax for hyperlink
 
         cleaned = td.get_text(separator=sep, strip=strip)
         return cleaned
@@ -105,12 +107,12 @@ class Game:
             return {}
 
         for key, value in cleaned.items():
-            if not value or key == 'name':
+            if not value or key == "name":
                 continue
             cleaned_value = (
                 re.sub(r"[^:,]+:", "", value.replace(";", ",")).strip().split(",")
-            ) 
-            cleaned[key] = cleaned_value 
+            )
+            cleaned[key] = cleaned_value
 
         platforms = cleaned.get("Available on", [])
         release_dates = cleaned.get("released", [])
@@ -136,7 +138,7 @@ class Game:
         result = self.clean_cargo_query(response.json())
         taxonomy = self.get_taxonomy()
         result["taxonomy"] = taxonomy
-        
+
         self._info_loaded = result
         return self._info_loaded
 
@@ -152,12 +154,13 @@ class Game:
                 for br in rows.find_all("br"):
                     br.replace_with("\n")
                 yield rows.find_all(["th", "td"])
+
         if head:
             headers = [
                 header.get_text()
-                for header in self.soup.select(f"{table_id} > tbody > tr:first-child")[0].find_all(
-                    "th"
-                )
+                for header in self.soup.select(f"{table_id} > tbody > tr:first-child")[
+                    0
+                ].find_all("th")
             ]
             return headers, generate()
         else:
@@ -213,7 +216,9 @@ class Game:
 
             result["api"][sluggify(graphics_api)] = {
                 "name": graphics_api,
-                "support": (support if not support.isdigit() else float(support)) if support else "Unknown",
+                "support": (support if not support.isdigit() else float(support))
+                if support
+                else "Unknown",
                 "notes": api_notes if api_notes else None,
             }
 
@@ -223,16 +228,16 @@ class Game:
                 exec_data[0].get_text(strip=True),
                 exec_data[-1].get_text(strip=True),
             )
-            for index,data in enumerate(exec_data[1:-1]):
-                support_class = data.find('div').get('class')
-                if 'tickcross-true' in support_class:
+            for index, data in enumerate(exec_data[1:-1]):
+                support_class = data.find("div").get("class")
+                if "tickcross-true" in support_class:
                     version = exec_headers[index]
                 else:
                     version = None
 
             result["executable"][sluggify(platform)] = {
                 "name": platform,
-                "version": version if version else 'Unknown',
+                "version": version if version else "Unknown",
                 "notes": e_notes if e_notes else None,
             }
 
@@ -260,7 +265,7 @@ class Game:
     async def get_all(self) -> dict:
         await self.download_page()
         api_mw_data = self.api_middleware()
-        
+
         return {
             "_id": self.pid,
             "name": self.title,
@@ -269,5 +274,5 @@ class Game:
             "info": await self.info(),
             "api": api_mw_data.get("api", {}),
             "executable": api_mw_data.get("executable", {}),
-            "middleware": api_mw_data.get("middleware", {})
+            "middleware": api_mw_data.get("middleware", {}),
         }

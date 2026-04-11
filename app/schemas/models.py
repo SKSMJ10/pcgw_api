@@ -69,6 +69,13 @@ class InfoResponse(BaseModel):
     taxonomy: TaxonomyData
 
 
+class SearchResult(BaseModel):
+    name: str
+    page_id: int
+
+class SearchResponse(RootModel):
+    root: dict[str, list[SearchResult]]
+
 class GameDocument(Document):
     id: int = Field(alias="_id")
     name: str
