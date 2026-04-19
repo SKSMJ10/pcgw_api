@@ -87,4 +87,12 @@ class GameDocument(Document):
     middleware: dict[str, MiddlewareData]
 
     class Settings:
-        collection_name = "games"
+        name = "games"
+
+
+class SearchDocument(Document):
+    id: str = Field(alias="_id")
+    result: list[SearchResult]
+
+    class Settings:
+        name = "searches"

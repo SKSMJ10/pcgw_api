@@ -10,7 +10,7 @@ class PCGamingWiki:
         self.client = client
 
     def get_game(self, pid: int):
-        return Game(pid, self.client)
+        return Game(pid, self.client, BASE_URL=self.BASE_URL, API=self.API)
 
     async def search_game(self, query: str):
         params = {

@@ -91,6 +91,10 @@ class Game:
 
     def get_taxonomy(self) -> dict:
         thead = self.soup.find("th", string="Taxonomy")
+        if not thead:
+            return {}
+        
+        #if taxonomy table exists then atleast one row would be there, no need to add another safety check(?)
         taxo_parent_row = thead.find_parent("tr")
         taxo_final_data = {}
 
@@ -102,9 +106,13 @@ class Game:
         return taxo_final_data
 
     def clean_cargo_query(self, response: dict) -> dict:
-        cleaned = response["cargoquery"][0]["title"]
-        if not cleaned:
+        cargo_query = response.get("cargoquery", [])
+        if not cargo_query:
             return {}
+        else:
+            cleaned = cargo_query[0].get("title", {})
+            if not cleaned:
+                return {}
 
         for key, value in cleaned.items():
             if not value or key == "name":
@@ -178,6 +186,8 @@ class Game:
                 elif index == 1:
                     value = data.find("div").get("title")
                 else:
+                    if tag == "video" and len(row_data) == 4 and index == 2:
+                        continue
                     value = self._clean_tags(data, "", False)
                 row.append(re.sub(r"\n", " ", value).strip())
 
