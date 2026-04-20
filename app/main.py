@@ -1,5 +1,7 @@
 import logging
 import httpx
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from app.api.routes import router
@@ -8,10 +10,14 @@ from app.schemas.models import GameDocument, SearchDocument
 from contextlib import asynccontextmanager
 from beanie import init_beanie
 
+load_dotenv()
+CONTACT_EMAIL = os.getenv("EMAIL")
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.INFO, format="%(levelname)s: %(asctime)s - %(name)s - %(message)s",
-    datefmt= "%Y-%m-%d %H:%M:%S"
+    level=logging.INFO,
+    format="%(levelname)s: %(asctime)s - %(name)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -27,7 +33,10 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Beanie initialized successfully!")
 
-        app.state.http_client = httpx.AsyncClient()
+        app.state.http_client = httpx.AsyncClient(
+            headers={"User-Agent": f"PCGW-Scraper/{CONTACT_EMAIL}"},
+            timeout=httpx.Timeout(10.0, connect=5.0),
+        )
         logger.info("HTTP client initialized successfully!")
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
