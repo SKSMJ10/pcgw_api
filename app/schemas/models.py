@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, RootModel
-from datetime import date
+from datetime import date, datetime, timezone
 from beanie import Document
 
 
@@ -78,6 +78,7 @@ class SearchResponse(RootModel):
 
 class GameDocument(Document):
     id: int = Field(alias="_id")
+    updated_at: datetime = Field(default_factory= lambda: datetime.now(timezone.utc))
     name: str
     video: dict[str, Feature]
     audio: dict[str, Feature]
@@ -92,6 +93,7 @@ class GameDocument(Document):
 
 class SearchDocument(Document):
     id: str = Field(alias="_id")
+    updated_at: datetime = Field(default_factory= lambda: datetime.now(timezone.utc))
     result: list[SearchResult]
 
     class Settings:
