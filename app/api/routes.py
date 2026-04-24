@@ -1,5 +1,6 @@
 import logging
-from fastapi import APIRouter, Request, Depends
+import httpx
+from fastapi import APIRouter, Request, Depends, HTTPException
 from datetime import datetime, timezone, timedelta
 from app.scraper.client import PCGamingWiki
 from app.schemas.models import (
@@ -23,19 +24,26 @@ def get_pcgw(request: Request) -> PCGamingWiki:
 async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) -> dict:
     # beanie can query with the data model itself, neat stuff
     cached_game = await GameDocument.get(page_id)
-    fresh_data = datetime.now(timezone.utc) - cached_game.updated_at <= timedelta(
-        days=7
-    )
-
-    if cached_game and fresh_data:
+    
+    if cached_game and (
+        datetime.now(timezone.utc) - cached_game.updated_at <= timedelta(days=7)
+    ):
         logger.info(f"Fetched {page_id}'s gamedata from DB")
         validated_game = cached_game
     else:
         logger.info(
             f"{page_id}'s gamedata not found or the gamedata is too old. Scraping fresh gamedata..."
         )
-        game = pcgw.get_game(pid=page_id)
-        validated_game = GameDocument(**(await game.get_all()))
+        try:
+            game = pcgw.get_game(pid=page_id)
+            all_data = await game.get_all()
+            validated_game = GameDocument(**all_data)
+        except ValueError:
+            logger.warning(f"Game ID {page_id} not found on PCGW.")
+            raise HTTPException(status_code=404, detail="Game not found")
+        except httpx.TimeoutException:
+            logger.error(f"Timeout connecting to PCGW for game {page_id}.")
+            raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
 
         if cached_game:
             await validated_game.replace()
@@ -49,18 +57,22 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
 async def search(query: str, pcgw: PCGamingWiki = Depends(get_pcgw)):
     query_id = query.lower()
     cached_search = await SearchDocument.get(query_id)
-    fresh_data = datetime.now(timezone.utc) - cached_search.updated_at <= timedelta(
-        days=1
-    )
 
-    if cached_search and fresh_data:
+    if cached_search and (
+        datetime.now(timezone.utc) - cached_search.updated_at <= timedelta(days=1)
+    ):
         logger.info(f"Fetched search '{query}' from DB")
         data = {"result": cached_search.result}
     else:
         logger.info(
             f"No results found for {query} or the searchdata is too old. Scraping fresh data..."
         )
-        data = await pcgw.search_game(query)
+        try:
+            data = await pcgw.search_game(query)
+        except httpx.TimeoutException:
+            logger.error(f"Timeout while searching PCGW for '{query}'.")
+            raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
+
         search_doc = SearchDocument(id=query_id, result=data.get("result", []))
 
         if cached_search:

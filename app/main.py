@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     await client.close()
 
 
-app = FastAPI(title="PCGamingWiki API", version="1.0", lifespan=lifespan)
+app = FastAPI(title="PCGamingWiki API", version="0.1", lifespan=lifespan)
 
 
 @app.middleware("http")
