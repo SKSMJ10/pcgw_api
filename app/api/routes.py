@@ -32,7 +32,7 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
         validated_game = cached_game
     else:
         logger.info(
-            f"{page_id}'s gamedata not found or the gamedata is too old. Scraping fresh gamedata..."
+            f"{page_id}'s gamedata not found or the gamedata is too old. Getting fresh gamedata..."
         )
         try:
             game = pcgw.get_game(pid=page_id)
@@ -44,6 +44,9 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
         except httpx.TimeoutException:
             logger.error(f"Timeout connecting to PCGW for game {page_id}.")
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
+        except httpx.HTTPError as exc:
+            logger.error(f"Error while connecting to PCGW for game {page_id}: {exc}")
+            raise HTTPException(status_code=502, detail="Bad Gateway: PCGamingWiki error")
 
         if cached_game:
             await validated_game.replace()
@@ -65,13 +68,16 @@ async def search(query: str, pcgw: PCGamingWiki = Depends(get_pcgw)):
         data = {"result": cached_search.result}
     else:
         logger.info(
-            f"No results found for {query} or the searchdata is too old. Scraping fresh data..."
+            f"No results found for {query} or the searchdata is too old. Getting fresh data..."
         )
         try:
             data = await pcgw.search_game(query)
         except httpx.TimeoutException:
             logger.error(f"Timeout while searching PCGW for '{query}'.")
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
+        except httpx.HTTPError as exc:
+            logger.error(f"Error while searching PCGW for '{query}': {exc}")
+            raise HTTPException(status_code=502, detail="Bad Gateway: PCGamingWiki error")
 
         search_doc = SearchDocument(id=query_id, result=data.get("result", []))
 

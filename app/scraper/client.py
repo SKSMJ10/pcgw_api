@@ -1,6 +1,9 @@
 import httpx
+import logging
 from app.scraper.game import Game
+from app.scraper.utils import limiter
 
+logger = logging.getLogger(__name__)
 
 class PCGamingWiki:
     BASE_URL = "https://www.pcgamingwiki.com/"
@@ -21,8 +24,13 @@ class PCGamingWiki:
             "where": f"_pageName LIKE '%{query}%'",
         }
 
-        response = await self.client.get(self.API, params=params)
+        if not limiter.has_capacity():
+            logger.warning(f"PCGW rate limit reached. Pausing search request for '{query}'...")
+        async with limiter:
+            response = await self.client.get(self.API, params=params)
+            response.raise_for_status()
+        
         cleaned_response = {"result": []}
-        for data in response.json().get('cargoquery'):
+        for data in response.json().get('cargoquery', []):
             cleaned_response["result"].append(data["title"])
         return cleaned_response

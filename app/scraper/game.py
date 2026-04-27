@@ -2,7 +2,7 @@ import re
 import httpx
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
-from app.scraper.utils import sluggify
+from app.scraper.utils import sluggify, limiter
 
 
 class Game:
@@ -27,8 +27,9 @@ class Game:
             "pageid": f"{self.pid}",
             "prop": "text",
         }
-        response = await self.session.get(self.API, params=params)
-        response.raise_for_status()
+        async with limiter:
+            response = await self.session.get(self.API, params=params)
+            response.raise_for_status()
 
         response_data = response.json().get("parse", {})
         if not response_data:
@@ -142,7 +143,9 @@ class Game:
             "where": f'Infobox_game._pageID="{self.pid}"',
         }
 
-        response = await self.session.get(self.API, params=params)
+        async with limiter:
+            response = await self.session.get(self.API, params=params)
+            response.raise_for_status()
         result = self.clean_cargo_query(response.json())
         taxonomy = self.get_taxonomy()
         result["taxonomy"] = taxonomy
