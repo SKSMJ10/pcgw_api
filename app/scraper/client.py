@@ -25,7 +25,7 @@ class PCGamingWiki:
         }
 
         if not limiter.has_capacity():
-            logger.warning(f"PCGW rate limit reached. Pausing search request for '{query}'...")
+            logger.warning(f"Rate limit reached. Pausing search request for '{query}'...")
         async with limiter:
             response = await self.client.get(self.API, params=params)
             response.raise_for_status()

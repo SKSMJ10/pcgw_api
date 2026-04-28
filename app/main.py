@@ -3,7 +3,7 @@ import httpx
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from app.api.routes import router
 from app.database.connection import client
 from app.schemas.models import GameDocument, SearchDocument
@@ -46,7 +46,38 @@ async def lifespan(app: FastAPI):
     await client.close()
 
 
-app = FastAPI(title="PCGamingWiki API", version="0.1", lifespan=lifespan)
+app = FastAPI(
+    title="PCGamingWiki API",
+    version="0.1",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+)
+
+@app.get(path="/docs", include_in_schema = False)
+async def serve_elements_html(request: Request):
+    return HTMLResponse("""
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>PCGW API Docs</title>
+    <!-- Embed elements Elements via Web Component -->
+    <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+  </head>
+  <body>
+
+    <elements-api
+      apiDescriptionUrl="/openapi.json"
+      router="hash"
+      layout="sidebar"
+    />
+
+  </body>
+</html>""")
+
 
 
 @app.middleware("http")

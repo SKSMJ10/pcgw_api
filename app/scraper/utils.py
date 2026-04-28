@@ -7,4 +7,4 @@ def sluggify(text: str) -> str:
     slugged = slugged.strip("-")
     return slugged
 
-limiter = AsyncLimiter(max_rate= 6, time_period= 60)
+limiter = AsyncLimiter(max_rate= 1, time_period= 3)

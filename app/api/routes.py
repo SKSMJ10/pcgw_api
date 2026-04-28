@@ -13,7 +13,7 @@ from app.schemas.models import (
     SearchDocument,
 )
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
 
 
