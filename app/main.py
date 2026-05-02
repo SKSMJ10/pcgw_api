@@ -54,8 +54,8 @@ app = FastAPI(
     redoc_url=None,
 )
 
-@app.get(path="/docs", include_in_schema = False)
-async def serve_elements_html(request: Request):
+@app.get(path="/docs", include_in_schema=False)
+async def serve_elements_html():
     return HTMLResponse("""
 <!doctype html>
 <html lang="en">

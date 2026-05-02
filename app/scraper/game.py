@@ -62,9 +62,9 @@ class Game:
         for a in td.find_all("a"):
             text = a.get_text(strip=True)
             href = a.get("href", "")
-            if href[0] == "/":
+            if href and href.startswith("/"):
                 full_url = urljoin(self.BASE_URL, href)
-            elif href[0] == "#":
+            elif href and href.startswith("#"):
                 full_url = urljoin(
                     self.BASE_URL, f"{self.title.replace(' ', '_')}{href}"
                 )
@@ -81,6 +81,9 @@ class Game:
         gd_content = ("Config_File_Location", "Save_Game_File_Location")
 
         for index, gd_table in enumerate(self.soup.select("#table-gamedata")):
+            if index >= len(gd_content):
+                break
+            
             gd_rows = gd_table.find_all(["th", "td"])
             system = gd_content[index]
             cleaned = [
@@ -97,12 +100,17 @@ class Game:
         
         #if taxonomy table exists then atleast one row would be there, no need to add another safety check(?)
         taxo_parent_row = thead.find_parent("tr")
+        if not taxo_parent_row:
+            return {}
+            
         taxo_final_data = {}
 
         for row in taxo_parent_row.find_next_siblings("tr")[:-1]:
             taxo_row = row.find_all("td")
-            cleaned = [self._clean_tags(data) for data in taxo_row]
-            taxo_final_data[cleaned[0]] = cleaned[1:]
+            if taxo_row:
+                cleaned = [self._clean_tags(data) for data in taxo_row]
+                if cleaned:
+                    taxo_final_data[cleaned[0]] = cleaned[1:]
 
         return taxo_final_data
 
@@ -167,12 +175,11 @@ class Game:
                 yield rows.find_all(["th", "td"])
 
         if head:
-            headers = [
-                header.get_text()
-                for header in self.soup.select(f"{table_id} > tbody > tr:first-child")[
-                    0
-                ].find_all("th")
-            ]
+            first_row = self.soup.select(f"{table_id} > tbody > tr:first-child")
+            if first_row:
+                headers = [header.get_text() for header in first_row[0].find_all("th")]
+            else:
+                headers = []
             return headers, generate()
         else:
             return generate()
@@ -187,7 +194,8 @@ class Game:
                 if index == 0:
                     value = data.get_text()
                 elif index == 1:
-                    value = data.find("div").get("title")
+                    div = data.find("div")
+                    value = div.get("title") if div else ""
                 else:
                     if tag == "video" and len(row_data) == 4 and index == 2:
                         continue
@@ -222,7 +230,8 @@ class Game:
             for index, data in enumerate(row_data):
                 value = data.get_text()
                 if not value and index == 1:
-                    value = data.find("div").get("title")
+                    div = data.find("div")
+                    value = div.get("title") if div else ""
                 api_row.append(value.strip())
 
             graphics_api, support, api_notes = api_row
@@ -241,8 +250,10 @@ class Game:
                 exec_data[0].get_text(strip=True),
                 exec_data[-1].get_text(strip=True),
             )
+            version = None
             for index, data in enumerate(exec_data[1:-1]):
-                support_class = data.find("div").get("class")
+                div = data.find("div")
+                support_class = div.get("class", []) if div else []
                 if "tickcross-true" in support_class:
                     version = exec_headers[index]
                 else:
