@@ -24,7 +24,7 @@ def get_pcgw(request: Request) -> PCGamingWiki:
 async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) -> dict:
     # beanie can query with the data model itself, neat stuff
     cached_game = await GameDocument.get(page_id)
-    
+
     if cached_game and (
         datetime.now(timezone.utc) - cached_game.updated_at <= timedelta(days=7)
     ):
@@ -46,7 +46,9 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
         except httpx.HTTPError as exc:
             logger.error(f"Error while connecting to PCGW for game {page_id}: {exc}")
-            raise HTTPException(status_code=502, detail="Bad Gateway: PCGamingWiki error")
+            raise HTTPException(
+                status_code=502, detail="Bad Gateway: PCGamingWiki error"
+            )
 
         if cached_game:
             await validated_game.replace()
@@ -77,7 +79,9 @@ async def search(query: str, pcgw: PCGamingWiki = Depends(get_pcgw)):
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
         except httpx.HTTPError as exc:
             logger.error(f"Error while searching PCGW for '{query}': {exc}")
-            raise HTTPException(status_code=502, detail="Bad Gateway: PCGamingWiki error")
+            raise HTTPException(
+                status_code=502, detail="Bad Gateway: PCGamingWiki error"
+            )
 
         search_doc = SearchDocument(id=query_id, result=data.get("result", []))
 

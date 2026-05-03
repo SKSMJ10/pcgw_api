@@ -2,7 +2,8 @@ import re
 import httpx
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
-from app.scraper.utils import sluggify, limiter
+from app.scraper.utils import sluggify, limiter, is_transient
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 
 class Game:
@@ -17,6 +18,12 @@ class Game:
         self._info_loaded = None
         self._page_loaded = False
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(1, min=2, max=10),
+        retry=retry_if_exception(is_transient),
+        reraise=True,
+    )
     async def download_page(self):
         if self._page_loaded:
             return
@@ -83,7 +90,7 @@ class Game:
         for index, gd_table in enumerate(self.soup.select("#table-gamedata")):
             if index >= len(gd_content):
                 break
-            
+
             gd_rows = gd_table.find_all(["th", "td"])
             system = gd_content[index]
             cleaned = [
@@ -97,12 +104,12 @@ class Game:
         thead = self.soup.find("th", string="Taxonomy")
         if not thead:
             return {}
-        
-        #if taxonomy table exists then atleast one row would be there, no need to add another safety check(?)
+
+        # if taxonomy table exists then atleast one row would be there, no need to add another safety check(?)
         taxo_parent_row = thead.find_parent("tr")
         if not taxo_parent_row:
             return {}
-            
+
         taxo_final_data = {}
 
         for row in taxo_parent_row.find_next_siblings("tr")[:-1]:
@@ -139,6 +146,12 @@ class Game:
         del cleaned["released__precision"], cleaned["Available on"]
         return cleaned
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(1, min=2, max=10),
+        retry=retry_if_exception(is_transient),
+        reraise=True,
+    )
     async def info(self) -> dict:
         if self._info_loaded:
             return self._info_loaded
@@ -250,7 +263,6 @@ class Game:
                 exec_data[0].get_text(strip=True),
                 exec_data[-1].get_text(strip=True),
             )
-            version = None
             for index, data in enumerate(exec_data[1:-1]):
                 div = data.find("div")
                 support_class = div.get("class", []) if div else []

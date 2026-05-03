@@ -54,6 +54,7 @@ app = FastAPI(
     redoc_url=None,
 )
 
+
 @app.get(path="/docs", include_in_schema=False)
 async def serve_elements_html():
     return HTMLResponse("""
@@ -77,7 +78,6 @@ async def serve_elements_html():
 
   </body>
 </html>""")
-
 
 
 @app.middleware("http")

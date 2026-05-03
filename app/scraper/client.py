@@ -1,9 +1,11 @@
 import httpx
 import logging
 from app.scraper.game import Game
-from app.scraper.utils import limiter
+from app.scraper.utils import limiter, is_transient
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
+
 
 class PCGamingWiki:
     BASE_URL = "https://www.pcgamingwiki.com/"
@@ -15,6 +17,12 @@ class PCGamingWiki:
     def get_game(self, pid: int):
         return Game(pid, self.client, BASE_URL=self.BASE_URL, API=self.API)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(1, min=2, max=10),
+        retry=retry_if_exception(is_transient),
+        reraise=True,
+    )
     async def search_game(self, query: str):
         params = {
             "action": "cargoquery",
@@ -25,12 +33,14 @@ class PCGamingWiki:
         }
 
         if not limiter.has_capacity():
-            logger.warning(f"Rate limit reached. Pausing search request for '{query}'...")
+            logger.warning(
+                f"Rate limit reached. Pausing search request for '{query}'..."
+            )
         async with limiter:
             response = await self.client.get(self.API, params=params)
             response.raise_for_status()
-        
+
         cleaned_response = {"result": []}
-        for data in response.json().get('cargoquery', []):
+        for data in response.json().get("cargoquery", []):
             cleaned_response["result"].append(data["title"])
         return cleaned_response

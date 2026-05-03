@@ -73,12 +73,14 @@ class SearchResult(BaseModel):
     name: str
     page_id: int
 
+
 class SearchResponse(RootModel):
     root: dict[str, list[SearchResult]]
 
+
 class GameDocument(Document):
     id: int = Field(alias="_id")
-    updated_at: datetime = Field(default_factory= lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     name: str
     video: dict[str, Feature]
     audio: dict[str, Feature]
@@ -93,7 +95,7 @@ class GameDocument(Document):
 
 class SearchDocument(Document):
     id: str = Field(alias="_id")
-    updated_at: datetime = Field(default_factory= lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     result: list[SearchResult]
 
     class Settings:
