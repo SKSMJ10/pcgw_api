@@ -1,7 +1,5 @@
-from dotenv import dotenv_values
+from app.config import settings
 from pymongo import AsyncMongoClient
 from pymongo.server_api import ServerApi
 
-config = dotenv_values(".env")
-MONGO_URI = config["MONGO_URI"]
-client = AsyncMongoClient(MONGO_URI, server_api=ServerApi("1"), tz_aware=True)
+client = AsyncMongoClient(settings.mongo_uri, server_api=ServerApi("1"), tz_aware=True)

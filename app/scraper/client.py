@@ -30,6 +30,7 @@ class PCGamingWiki:
             "tables": "Infobox_game",
             "fields": "_pageName=name,_pageID=page_id",
             "where": f"_pageName LIKE '%{query}%'",
+            "limit": "max",
         }
 
         if not limiter.has_capacity():

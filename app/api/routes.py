@@ -59,15 +59,18 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
 
 
 @router.get(path="/search", response_model=SearchResponse)
-async def search(query: str, pcgw: PCGamingWiki = Depends(get_pcgw)):
+async def search(
+    query: str, limit: int = 10, offset: int = 0, pcgw: PCGamingWiki = Depends(get_pcgw)
+):
     query_id = query.lower()
     cached_search = await SearchDocument.get(query_id)
 
     if cached_search and (
-        datetime.now(timezone.utc) - cached_search.updated_at <= timedelta(days=1)
+        datetime.now(timezone.utc) - cached_search.updated_at <= timedelta(days=7)
     ):
         logger.info(f"Fetched search '{query}' from DB")
-        data = {"result": cached_search.result}
+        # data = {"result": cached_search.result}
+        full_result = cached_search.result
     else:
         logger.info(
             f"No results found for {query} or the searchdata is too old. Getting fresh data..."
@@ -83,14 +86,29 @@ async def search(query: str, pcgw: PCGamingWiki = Depends(get_pcgw)):
                 status_code=502, detail="Bad Gateway: PCGamingWiki error"
             )
 
-        search_doc = SearchDocument(id=query_id, result=data.get("result", []))
+        full_result = data.get("result", [])
+        search_doc = SearchDocument(id=query_id, result=full_result)
 
         if cached_search:
             await search_doc.replace()
         else:
             await search_doc.insert()
 
-    return data
+    total_results = len(full_result)
+
+    if limit == 0:
+        paginated = full_result[offset:]
+    else:
+        paginated = full_result[offset : offset + limit]
+
+    final_data = {
+        "total": total_results,
+        "limit": limit,
+        "offset": offset,
+        "result": paginated,
+    }
+
+    return final_data
 
 
 @router.get(path="/game/{page_id}/video", response_model=VideoResponse)

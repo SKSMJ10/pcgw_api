@@ -1,17 +1,14 @@
 import logging
 import httpx
-import os
-from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from app.api.routes import router
 from app.database.connection import client
+from app.config import settings
 from app.schemas.models import GameDocument, SearchDocument
 from contextlib import asynccontextmanager
 from beanie import init_beanie
 
-load_dotenv()
-CONTACT_EMAIL = os.getenv("EMAIL")
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -34,7 +31,7 @@ async def lifespan(app: FastAPI):
         logger.info("Beanie initialized successfully!")
 
         app.state.http_client = httpx.AsyncClient(
-            headers={"User-Agent": f"PCGW-Scraper/{CONTACT_EMAIL}"},
+            headers={"User-Agent": f"PCGW-Scraper/{settings.email}"},
             timeout=httpx.Timeout(10.0, connect=5.0),
         )
         logger.info("HTTP client initialized successfully!")

@@ -74,8 +74,11 @@ class SearchResult(BaseModel):
     page_id: int
 
 
-class SearchResponse(RootModel):
-    root: dict[str, list[SearchResult]]
+class SearchResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    result: list[SearchResult]
 
 
 class GameDocument(Document):
