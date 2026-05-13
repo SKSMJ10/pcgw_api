@@ -8,6 +8,7 @@ from app.config import settings
 from app.schemas.models import GameDocument, SearchDocument
 from contextlib import asynccontextmanager
 from beanie import init_beanie
+from pymongo.errors import PyMongoError
 
 
 logger = logging.getLogger(__name__)
@@ -21,22 +22,28 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.http_client = httpx.AsyncClient(
+        headers={"User-Agent": f"PCGW-Scraper/{settings.email}"},
+        timeout=httpx.Timeout(10.0, connect=5.0),
+    )
+    logger.info("HTTP client initialized successfully!")
     try:
         await client.admin.command("ping")
         logger.info("You successfully connected to MongoDB!")
 
-        await init_beanie(
-            database=client.pcgw_db, document_models=[GameDocument, SearchDocument]
-        )
-        logger.info("Beanie initialized successfully!")
+        try:
+            await init_beanie(
+                database=client.pcgw_db, document_models=[GameDocument, SearchDocument]
+            )
+            logger.info("Beanie initialized successfully!")
+        except Exception as e:
+            logger.error(f"Failed to initiate Beanie: {e}")
+            raise e
 
-        app.state.http_client = httpx.AsyncClient(
-            headers={"User-Agent": f"PCGW-Scraper/{settings.email}"},
-            timeout=httpx.Timeout(10.0, connect=5.0),
-        )
-        logger.info("HTTP client initialized successfully!")
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
+        raise e
+
     yield
     if hasattr(app.state, "http_client"):
         await app.state.http_client.aclose()
@@ -77,15 +84,23 @@ async def serve_elements_html():
 </html>""")
 
 
-@app.middleware("http")
-async def global_exception_middleware(request: Request, call_next):
-    try:
-        return await call_next(request)
-    except Exception as exc:
-        logger.exception(f"Unhandled error on {request.method} {request.url}")
-        return JSONResponse(
-            status_code=500, content={"detail": f"Internal Server Error: {str(exc)}"}
-        )
+@app.exception_handler(PyMongoError)
+async def mongodb_error_handler(request: Request, exc: PyMongoError):
+    logger.exception(
+        f"Database connection error on {request.method} {request.url}: {exc}"
+    )
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Database service is currently unavailable."},
+    )
+
+
+@app.exception_handler(Exception)
+async def global_error_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled error on {request.method} {request.url}: {exc}")
+    return JSONResponse(
+        status_code=500, content={"detail": "An unexpected error occurred."}
+    )
 
 
 app.include_router(router=router)

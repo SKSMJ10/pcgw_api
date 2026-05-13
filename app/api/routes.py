@@ -2,6 +2,7 @@ import logging
 import httpx
 from fastapi import APIRouter, Request, Depends, HTTPException
 from datetime import datetime, timezone, timedelta
+from app.api.auth import verify_api_key
 from app.scraper.client import PCGamingWiki
 from app.schemas.models import (
     VideoResponse,
@@ -13,7 +14,7 @@ from app.schemas.models import (
     SearchDocument,
 )
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", dependencies=[Depends(verify_api_key)])
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +63,7 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
 async def search(
     query: str, limit: int = 10, offset: int = 0, pcgw: PCGamingWiki = Depends(get_pcgw)
 ):
-    query_id = query.lower()
+    query_id = query.strip().lower()
     cached_search = await SearchDocument.get(query_id)
 
     if cached_search and (
