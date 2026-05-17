@@ -1,11 +1,12 @@
 import logging
 import httpx
-from fastapi import FastAPI, Request
+import sentry_sdk
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from app.api.routes import router
 from app.database.connection import client
 from app.config import settings
-from app.schemas.models import GameDocument, SearchDocument
+from app.schemas.models import GameDocument, SearchDocument, Health
 from contextlib import asynccontextmanager
 from beanie import init_beanie
 from pymongo.errors import PyMongoError
@@ -18,6 +19,14 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Sentry setup
+sentry_sdk.init(
+    dsn=settings.sentry_dsn,
+    send_default_pii=True,
+    enable_logs=True,
+    traces_sample_rate=1.0,
+)
 
 
 @asynccontextmanager
@@ -57,6 +66,23 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
+
+
+@app.get(path="/health", response_model=Health, include_in_schema=False)
+async def health_check():
+    try:
+        await client.admin.command("ping")
+        return Health(status="OK")
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=503, detail="Database service is not available."
+        )
+
+
+@app.get(path="/sentry-debug", include_in_schema=False)
+async def trigger_error():
+    1 / 0
 
 
 @app.get(path="/docs", include_in_schema=False)

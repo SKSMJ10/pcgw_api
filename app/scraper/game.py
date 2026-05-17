@@ -138,8 +138,8 @@ class Game:
             )
             cleaned[key] = cleaned_value
 
-        platforms = cleaned.get("Available on", [])
-        release_dates = cleaned.get("released", [])
+        platforms = cleaned.get("Available on", []) or ["TBA"]
+        release_dates = cleaned.get("released", []) or ["TBA"]
 
         cleaned["released"] = dict(zip(platforms, release_dates))
 

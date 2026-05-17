@@ -1,7 +1,9 @@
 import logging
 import httpx
+import sentry_sdk
 from fastapi import APIRouter, Request, Depends, HTTPException
 from datetime import datetime, timezone, timedelta
+from pydantic import ValidationError
 from app.api.auth import verify_api_key
 from app.scraper.client import PCGamingWiki
 from app.schemas.models import (
@@ -39,14 +41,28 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
             game = pcgw.get_game(pid=page_id)
             all_data = await game.get_all()
             validated_game = GameDocument(**all_data)
-        except ValueError:
+
+        except ValidationError as exc:
+            logger.warning(f"Failed to validate data for {page_id}: {exc}")
+            sentry_sdk.capture_exception(exc)
+            raise HTTPException(
+                status_code=500,
+                detail="Data validation error while parsing received response.",
+            )
+
+        except ValueError as exc:
             logger.warning(f"Game ID {page_id} not found on PCGW.")
+            sentry_sdk.capture_exception(exc)
             raise HTTPException(status_code=404, detail="Game not found")
-        except httpx.TimeoutException:
+
+        except httpx.TimeoutException as exc:
             logger.error(f"Timeout connecting to PCGW for game {page_id}.")
+            sentry_sdk.capture_exception(exc)
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
+
         except httpx.HTTPError as exc:
             logger.error(f"Error while connecting to PCGW for game {page_id}: {exc}")
+            sentry_sdk.capture_exception(exc)
             raise HTTPException(
                 status_code=502, detail="Bad Gateway: PCGamingWiki error"
             )
@@ -78,11 +94,13 @@ async def search(
         )
         try:
             data = await pcgw.search_game(query)
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as exc:
             logger.error(f"Timeout while searching PCGW for '{query}'.")
+            sentry_sdk.capture_exception(exc)
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
         except httpx.HTTPError as exc:
             logger.error(f"Error while searching PCGW for '{query}': {exc}")
+            sentry_sdk.capture_exception(exc)
             raise HTTPException(
                 status_code=502, detail="Bad Gateway: PCGamingWiki error"
             )

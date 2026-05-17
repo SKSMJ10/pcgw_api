@@ -3,6 +3,10 @@ from datetime import date, datetime, timezone
 from beanie import Document
 
 
+class Health(BaseModel):
+    status: str
+
+
 class Feature(BaseModel):
     name: str
     state: str
@@ -64,7 +68,7 @@ class InfoResponse(BaseModel):
     name: str
     developers: list[str]
     engines: list[str] | None
-    released: dict[str, date]
+    released: dict[str, date | str]
     publishers: list[str] | None
     taxonomy: TaxonomyData
 

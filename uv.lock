@@ -581,6 +581,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pymongo" },
     { name = "requests" },
+    { name = "sentry-sdk" },
     { name = "tenacity" },
     { name = "uvicorn" },
 ]
@@ -595,6 +596,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pymongo", extras = ["srv"], specifier = ">=4.16.0" },
     { name = "requests", specifier = ">=2.33.1" },
+    { name = "sentry-sdk", specifier = ">=2.57.0" },
     { name = "tenacity", specifier = ">=9.1.4" },
     { name = "uvicorn", specifier = ">=0.44.0" },
 ]
