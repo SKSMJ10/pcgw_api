@@ -23,6 +23,15 @@ class AudioResponse(BaseModel):
     audio: dict[str, Feature]
 
 
+class ConfigSaveData(RootModel):
+    root: list[tuple[str, str]] | None
+
+
+class GameDataResponse(BaseModel):
+    name: str
+    config: dict[str, ConfigSaveData]
+
+
 class ApiData(BaseModel):
     name: str
     support: float | str
@@ -89,12 +98,13 @@ class GameDocument(Document):
     id: int = Field(alias="_id")
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     name: str
+    game_data: dict[str, ConfigSaveData]
     video: dict[str, Feature]
     audio: dict[str, Feature]
     info: InfoResponse
     api: dict[str, ApiData]
     executable: dict[str, ExecutableData]
-    middleware: dict[str, MiddlewareData]
+    middleware: dict[str, MiddlewareData] | None = None
 
     class Settings:
         name = "games"

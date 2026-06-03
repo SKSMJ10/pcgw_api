@@ -66,6 +66,9 @@ class Game:
         for sup in td.find_all("sup"):
             sup.decompose()
 
+        for breaks in td.find_all("br"):
+            breaks.replace_with(" ")
+
         for a in td.find_all("a"):
             text = a.get_text(strip=True)
             href = a.get("href", "")
@@ -84,7 +87,7 @@ class Game:
         return cleaned
 
     def game_data(self) -> dict:
-        gd_data = {"Name": self.title}
+        gd_data = {}
         gd_content = ("Config_File_Location", "Save_Game_File_Location")
 
         for index, gd_table in enumerate(self.soup.select("#table-gamedata")):
@@ -94,7 +97,7 @@ class Game:
             gd_rows = gd_table.find_all(["th", "td"])
             system = gd_content[index]
             cleaned = [
-                self._clean_tags(data) for data in gd_rows[2:]
+                self._clean_tags(data, "", False) for data in gd_rows[2:]
             ]  # we are starting from index 2 to skip content of first heading row
             gd_data[system] = list(zip(cleaned[::2], cleaned[1::2]))
 
@@ -241,10 +244,13 @@ class Game:
             api_row = []
 
             for index, data in enumerate(row_data):
-                value = data.get_text()
-                if not value and index == 1:
-                    div = data.find("div")
-                    value = div.get("title") if div else ""
+                if index == 2:
+                    value = self._clean_tags(data, strip=True)
+                else:
+                    value = data.get_text()
+                    if not value and index == 1:
+                        div = data.find("div")
+                        value = div.get("title") if div else ""
                 api_row.append(value.strip())
 
             graphics_api, support, api_notes = api_row
@@ -261,13 +267,14 @@ class Game:
         for exec_data in api_exec_trs:
             platform, e_notes = (
                 exec_data[0].get_text(strip=True),
-                exec_data[-1].get_text(strip=True),
+                self._clean_tags(exec_data[-1], strip=True),
             )
             for index, data in enumerate(exec_data[1:-1]):
                 div = data.find("div")
                 support_class = div.get("class", []) if div else []
                 if "tickcross-true" in support_class:
                     version = exec_headers[index]
+                    break
                 else:
                     version = None
 
@@ -282,10 +289,10 @@ class Game:
                 mw_row = []
 
                 for index, data in enumerate(mw_data):
-                    if index == 1:
-                        value = self._clean_tags(data)
-                    else:
+                    if index == 0:
                         value = data.get_text(strip=True)
+                    else:
+                        value = self._clean_tags(data)
                     mw_row.append(value)
 
                 _type, mw, mw_notes = mw_row
@@ -305,6 +312,7 @@ class Game:
         return {
             "_id": self.pid,
             "name": self.title,
+            "game_data": self.game_data(),
             "video": self.video().get("video", {}),
             "audio": self.audio().get("audio", {}),
             "info": await self.info(),

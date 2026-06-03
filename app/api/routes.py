@@ -12,6 +12,7 @@ from app.schemas.models import (
     ApiMiddlewareResponse,
     InfoResponse,
     SearchResponse,
+    GameDataResponse,
     GameDocument,
     SearchDocument,
 )
@@ -128,6 +129,11 @@ async def search(
     }
 
     return final_data
+
+
+@router.get(path="/game/{page_id}/game-data", response_model=GameDataResponse)
+async def game_data_config(data: dict = Depends(get_game_data)):
+    return {"name": data["name"], "config": data.get("game_data", {})}
 
 
 @router.get(path="/game/{page_id}/video", response_model=VideoResponse)
