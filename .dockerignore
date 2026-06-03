@@ -1,0 +1,13 @@
+.git/
+.gitignore
+
+Dockerfile
+.dockerignore
+
+__pycache__/
+.venv/
+.env
+
+.ruff_cache/
+.uv_cache/
+
