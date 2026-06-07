@@ -1,5 +1,6 @@
 import re
 import httpx
+from asyncio import TaskGroup
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
 from app.scraper.utils import sluggify, limiter, is_transient
@@ -306,8 +307,14 @@ class Game:
         return result
 
     async def get_all(self) -> dict:
-        await self.download_page()
+        async with TaskGroup() as tg:
+            tg.create_task(self.download_page())
+            info_task = tg.create_task(self.info())
+
         api_mw_data = self.api_middleware()
+
+        final_info = info_task.result()
+        final_info["taxonomy"] = self.get_taxonomy()
 
         return {
             "_id": self.pid,
