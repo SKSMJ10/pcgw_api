@@ -98,7 +98,7 @@ class Game:
             gd_rows = gd_table.find_all(["th", "td"])
             system = gd_content[index]
             cleaned = [
-                self._clean_tags(data, "", False) for data in gd_rows[2:]
+                self._clean_tags(data, "", False).strip() for data in gd_rows[2:]
             ]  # we are starting from index 2 to skip content of first heading row
             gd_data[system] = list(zip(cleaned[::2], cleaned[1::2]))
 
@@ -217,7 +217,7 @@ class Game:
                     if tag == "video" and len(row_data) == 4 and index == 2:
                         continue
                     value = self._clean_tags(data, "", False)
-                row.append(re.sub(r"\n", " ", value).strip())
+                row.append(re.sub(r"\s+", " ", value).strip())
 
             feature, state, notes = row
 
@@ -270,14 +270,15 @@ class Game:
                 exec_data[0].get_text(strip=True),
                 self._clean_tags(exec_data[-1], strip=True),
             )
+            version = []
             for index, data in enumerate(exec_data[1:-1]):
                 div = data.find("div")
                 support_class = div.get("class", []) if div else []
                 if "tickcross-true" in support_class:
-                    version = exec_headers[index]
-                    break
-                else:
-                    version = None
+                    version.append(exec_headers[index])
+
+                elif "tickcross-hackable" in support_class:
+                    version.append(f"{exec_headers[index]} (Hackable)")
 
             result["executable"][sluggify(platform)] = {
                 "name": platform,

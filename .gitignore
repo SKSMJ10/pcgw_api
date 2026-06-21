@@ -2,5 +2,8 @@ __pycache__/
 .venv
 .env
 
-.ruff_cache
-.uv_cache
+.ruff_cache/
+.uv_cache/
+.pytest_cache/
+
+.vscode/

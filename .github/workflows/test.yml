@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install dependencies
+        run: |
+          # Install main dependencies, plus dev dependencies (pytest etc.)
+          uv sync --all-groups
+
+      - name: run tests with pytest
+        env:
+          # Provide dummy env vars so settings validation passes
+          EMAIL: "test@example.com"
+          MONGO_URI: "mongodb://localhost:27017/pcgw_test"
+          API_KEY: "test_123"
+        run: |
+          uv run pytest -v

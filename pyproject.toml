@@ -20,3 +20,9 @@ dependencies = [
 
 [tool.uv]
 cache-dir = "./.uv_cache"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.4.0",
+]
