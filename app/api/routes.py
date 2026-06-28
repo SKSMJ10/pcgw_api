@@ -1,7 +1,7 @@
 import logging
 import httpx
 import sentry_sdk
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, status
 from datetime import datetime, timezone, timedelta
 from pydantic import ValidationError
 from app.api.auth import verify_api_key
@@ -159,3 +159,14 @@ async def get_api_middleware(data: dict = Depends(get_game_data)):
 @router.get(path="/game/{page_id}/info", response_model=InfoResponse)
 async def get_info(data: dict = Depends(get_game_data)):
     return data.get("info", {})
+
+
+@router.delete(path="/game/{page_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_game(page_id: int):
+    cached_game = await GameDocument.get(page_id)
+    logger.info(f"Successfully deleted {page_id}'s gamedocument.")
+
+    if cached_game is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    await cached_game.delete()
