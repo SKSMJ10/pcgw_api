@@ -178,7 +178,9 @@ class Game:
         self._info_loaded = result
         return self._info_loaded
 
-    def _get_table_rows(self, tag: str, table_name: str = None, head: bool = False):
+    def _get_table_rows(
+        self, tag: str, table_name: str | None = None, head: bool = False
+    ):
         if table_name:
             table_id = f"#table-{table_name}-{tag}"
         else:
@@ -201,7 +203,7 @@ class Game:
         else:
             return generate()
 
-    def _extract_table(self, tag: str, table: str = None):
+    def _extract_table(self, tag: str, table: str | None = None):
         result = {"name": self.title, f"{tag}": {}}
 
         for row_data in self._get_table_rows(tag, table):

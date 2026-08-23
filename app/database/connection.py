@@ -1,4 +1,4 @@
-from app.config import settings
+from app.core.config import settings
 from pymongo import AsyncMongoClient
 from pymongo.server_api import ServerApi
 

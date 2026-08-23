@@ -24,12 +24,14 @@ class PCGamingWiki:
         reraise=True,
     )
     async def search_game(self, query: str):
+        final_query = query.replace("'", "\\'")
+
         params = {
             "action": "cargoquery",
             "format": "json",
             "tables": "Infobox_game",
             "fields": "_pageName=name,_pageID=page_id",
-            "where": f"_pageName LIKE '%{query}%'",
+            "where": f"_pageName LIKE '%{final_query}%'",
             "limit": "max",
         }
 

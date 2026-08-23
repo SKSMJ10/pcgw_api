@@ -2,7 +2,7 @@ import logging
 import httpx
 import sentry_sdk
 from fastapi import APIRouter, Request, Depends, HTTPException, status
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, UTC
 from pydantic import ValidationError
 from app.api.auth import verify_api_key
 from app.scraper.client import PCGamingWiki
@@ -30,7 +30,7 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
     cached_game = await GameDocument.get(page_id)
 
     if cached_game and (
-        datetime.now(timezone.utc) - cached_game.updated_at <= timedelta(days=7)
+        datetime.now(UTC) - cached_game.updated_at <= timedelta(days=7)
     ):
         logger.info(f"Fetched {page_id}'s gamedata from DB")
         validated_game = cached_game
@@ -84,7 +84,7 @@ async def search(
     cached_search = await SearchDocument.get(query_id)
 
     if cached_search and (
-        datetime.now(timezone.utc) - cached_search.updated_at <= timedelta(days=7)
+        datetime.now(UTC) - cached_search.updated_at <= timedelta(days=7)
     ):
         logger.info(f"Fetched search '{query}' from DB")
         # data = {"result": cached_search.result}
@@ -160,12 +160,13 @@ async def get_api_middleware(data: dict = Depends(get_game_data)):
 async def get_info(data: dict = Depends(get_game_data)):
     return data.get("info", {})
 
+
 @router.delete(path="/game/{page_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_game(page_id: int):
     cached_game = await GameDocument.get(page_id)
-    logger.info(f"Successfully deleted {page_id}'s gamedocument.")
 
     if cached_game is None:
         raise HTTPException(status_code=404, detail="Game not found")
 
     await cached_game.delete()
+    logger.info(f"Successfully deleted {page_id}'s gamedocument.")

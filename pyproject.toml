@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "pymongo[srv]>=4.16.0",
     "requests>=2.33.1",
+    "ruff>=0.16.0",
     "sentry-sdk>=2.57.0",
     "tenacity>=9.1.4",
     "uvicorn>=0.44.0",
@@ -20,6 +21,9 @@ dependencies = [
 
 [tool.uv]
 cache-dir = "./.uv_cache"
+
+[tool.ruff.lint]
+ignore = ["I001", "B008"]
 
 [dependency-groups]
 dev = [
