@@ -6,7 +6,8 @@ class Settings(BaseSettings):
     mongo_uri: str
     api_key: str
     sentry_dsn: str | None = None
-
+    pcgw_user: str
+    pcgw_pass: str
     model_config = SettingsConfigDict(env_file=".env")
 
 

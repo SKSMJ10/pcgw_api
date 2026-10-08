@@ -72,9 +72,9 @@ async def test_search_game_success(pcgw_client, mock_httpx_client):
         params={
             "action": "cargoquery",
             "format": "json",
-            "tables": "Infobox_game",
-            "fields": "_pageName=name,_pageID=page_id",
-            "where": "_pageName LIKE '%Cyberpunk%'",
+            "tables": "Game",
+            "fields": "Game._pageName=name,Game._pageID=page_id",
+            "where": "Game._pageName LIKE '%Cyberpunk%'",
             "limit": "max",
         },
     )
@@ -88,7 +88,7 @@ async def test_search_game_escapes_single_quotes(pcgw_client, mock_httpx_client)
 
     assert result == {"result": []}
     _, kwargs = mock_httpx_client.get.call_args
-    assert kwargs["params"]["where"] == "_pageName LIKE '%Assassin\\'s Creed%'"
+    assert kwargs["params"]["where"] == "Game._pageName LIKE '%Assassin\\'s Creed%'"
 
 
 @pytest.mark.asyncio

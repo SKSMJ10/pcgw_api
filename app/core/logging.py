@@ -1,9 +1,9 @@
 import logging
-import logging.config
+from typing import ClassVar
 
 
 class ColorFormatter(logging.Formatter):
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         "DEBUG": "\033[36m",  # Cyan
         "INFO": "\033[32m",  # Green
         "WARNING": "\033[33m",  # Yellow

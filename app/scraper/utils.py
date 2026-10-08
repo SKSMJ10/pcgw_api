@@ -10,7 +10,7 @@ def sluggify(text: str) -> str:
     return slugged
 
 
-limiter = AsyncLimiter(max_rate=1, time_period=2)
+limiter = AsyncLimiter(max_rate=1, time_period=1)
 
 
 def is_transient(exception: Exception) -> bool:

@@ -9,14 +9,12 @@ dependencies = [
     "beanie>=2.1.0",
     "beautifulsoup4>=4.14.3",
     "fastapi[standard]>=0.135.3",
-    "pre-commit>=4.6.0",
+    "httpx>=0.28.1",
     "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
     "pymongo[srv]>=4.16.0",
-    "requests>=2.33.1",
-    "ruff>=0.16.0",
     "sentry-sdk>=2.57.0",
     "tenacity>=9.1.4",
-    "uvicorn>=0.44.0",
 ]
 
 [tool.uv]
@@ -27,6 +25,8 @@ ignore = ["I001", "B008"]
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.6.2",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.9",
 ]

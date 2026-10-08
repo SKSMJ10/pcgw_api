@@ -132,7 +132,7 @@ def test_audio_extraction(mock_game, e_feature, e_state, e_notes):
             "cp_2077.html",
             "Config_File_Location",
             "Windows",
-            "[%LOCALAPPDATA%](https://www.pcgamingwiki.com/wiki/Glossary:Game_data#User_application_data)\CD Projekt Red\Cyberpunk 2077",
+            r"[%LOCALAPPDATA%](https://www.pcgamingwiki.com/wiki/Glossary:Game_data#User_application_data)\CD Projekt Red\Cyberpunk 2077",
         ),
         (
             "cp_2077.html",
@@ -150,7 +150,7 @@ def test_audio_extraction(mock_game, e_feature, e_state, e_notes):
             "cp_2077.html",
             "Save_Game_File_Location",
             "Windows",
-            "[%USERPROFILE%](https://www.pcgamingwiki.com/wiki/Glossary:Game_data#User_profile)\Saved Games\CD Projekt Red\Cyberpunk 2077",
+            r"[%USERPROFILE%](https://www.pcgamingwiki.com/wiki/Glossary:Game_data#User_profile)\Saved Games\CD Projekt Red\Cyberpunk 2077",
         ),
         (
             "cp_2077.html",

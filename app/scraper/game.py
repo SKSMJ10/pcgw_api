@@ -135,8 +135,13 @@ class Game:
                 return {}
 
         for key, value in cleaned.items():
-            if not value or key == "name":
+            if key == "name":
                 continue
+
+            if not value:
+                cleaned[key] = None
+                continue
+
             cleaned_value = (
                 re.sub(r"[^:,]+:", "", value.replace(";", ",")).strip().split(",")
             )
@@ -163,17 +168,15 @@ class Game:
         params = {
             "action": "cargoquery",
             "format": "json",
-            "tables": "Infobox_game",
-            "fields": "Infobox_game._pageName=name,Infobox_game.Developers=developers,Infobox_game.Engines=engines,Infobox_game.Available_on,Infobox_game.Released=released,Infobox_game.Publishers=publishers",
-            "where": f'Infobox_game._pageID="{self.pid}"',
+            "tables": "Game",
+            "fields": "Game._pageName=name,Game.Developers=developers,Game.Engines=engines,Game.Available_on,Game.Released=released,Game.Publishers=publishers",
+            "where": f'Game._pageID="{self.pid}"',
         }
 
         async with limiter:
             response = await self.session.get(self.API, params=params)
             response.raise_for_status()
         result = self.clean_cargo_query(response.json())
-        taxonomy = self.get_taxonomy()
-        result["taxonomy"] = taxonomy
 
         self._info_loaded = result
         return self._info_loaded
@@ -325,7 +328,7 @@ class Game:
             "game_data": self.game_data(),
             "video": self.video().get("video", {}),
             "audio": self.audio().get("audio", {}),
-            "info": await self.info(),
+            "info": final_info,
             "api": api_mw_data.get("api", {}),
             "executable": api_mw_data.get("executable", {}),
             "middleware": api_mw_data.get("middleware", {}),

@@ -9,6 +9,7 @@ from app.api.routes import router
 from app.database.connection import client
 from app.core.config import settings
 from app.schemas.models import GameDocument, SearchDocument, Health
+from app.scraper.client import PCGamingWiki
 from contextlib import asynccontextmanager
 from beanie import init_beanie
 from pymongo.errors import PyMongoError
@@ -32,22 +33,33 @@ async def lifespan(app: FastAPI):
         timeout=httpx.Timeout(10.0, connect=5.0),
     )
     logger.info("HTTP client initialized successfully!")
+
+    # Initialize PCGW Client
+    if settings.pcgw_user and settings.pcgw_pass:
+        app.state.pcgw = PCGamingWiki(client=app.state.http_client)
+        try:
+            await app.state.pcgw.login()
+        except Exception as e:
+            logger.error(f"Failed to log in to PCGW: {e}")
+            raise
+
     try:
         await client.admin.command("ping")
-        logger.info("You successfully connected to MongoDB!")
-
-        try:
-            await init_beanie(
-                database=client.pcgw_db, document_models=[GameDocument, SearchDocument]
-            )
-            logger.info("Beanie initialized successfully!")
-        except Exception as e:
-            logger.error(f"Failed to initiate Beanie: {e}")
-            raise e
-
+        logger.info("Connected to MongoDB successfully!")
     except Exception as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
-        raise e
+        logger.error(f"MongoDB connection failed: {e}")
+        raise
+
+    # Initialize Beanie
+    try:
+        await init_beanie(
+            database=client.pcgw_db,
+            document_models=[GameDocument, SearchDocument],
+        )
+        logger.info("Beanie initialized successfully!")
+    except Exception as e:
+        logger.error(f"Beanie initialization failed: {e}")
+        raise
 
     yield
     if hasattr(app.state, "http_client"):
@@ -69,16 +81,11 @@ async def health_check():
     try:
         await client.admin.command("ping")
         return Health(status="OK")
-    except Exception as e:
+    except PyMongoError as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(
             status_code=503, detail="Database service is not available."
-        )
-
-
-@app.get(path="/sentry-debug", include_in_schema=False)
-async def trigger_error():
-    1 / 0
+        ) from e
 
 
 @app.get(path="/docs", include_in_schema=False)
@@ -108,20 +115,10 @@ async def serve_elements_html():
 
 @app.exception_handler(PyMongoError)
 async def mongodb_error_handler(request: Request, exc: PyMongoError):
-    logger.exception(
-        f"Database connection error on {request.method} {request.url}: {exc}"
-    )
+    logger.error(f"Database connection error on {request.method} {request.url}: {exc}")
     return JSONResponse(
         status_code=503,
         content={"detail": "Database service is currently unavailable."},
-    )
-
-
-@app.exception_handler(Exception)
-async def global_error_handler(request: Request, exc: Exception):
-    logger.exception(f"Unhandled error on {request.method} {request.url}: {exc}")
-    return JSONResponse(
-        status_code=500, content={"detail": "An unexpected error occurred."}
     )
 
 

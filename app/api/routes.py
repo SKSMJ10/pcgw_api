@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_pcgw(request: Request) -> PCGamingWiki:
-    return PCGamingWiki(client=request.app.state.http_client)
+    return request.app.state.pcgw
 
 
 async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) -> dict:
@@ -87,12 +87,9 @@ async def search(
         datetime.now(UTC) - cached_search.updated_at <= timedelta(days=7)
     ):
         logger.info(f"Fetched search '{query}' from DB")
-        # data = {"result": cached_search.result}
         full_result = cached_search.result
     else:
-        logger.info(
-            f"No results found for {query} or the searchdata is too old. Getting fresh data..."
-        )
+        logger.info(f"No result found for {query} in the DB. Getting fresh data...")
         try:
             data = await pcgw.search_game(query)
         except httpx.TimeoutException as exc:
@@ -107,12 +104,15 @@ async def search(
             )
 
         full_result = data.get("result", [])
-        search_doc = SearchDocument(id=query_id, result=full_result)
 
-        if cached_search:
-            await search_doc.replace()
+        if full_result:
+            search_doc = SearchDocument(id=query_id, result=full_result)
+            if cached_search:
+                await search_doc.replace()
+            else:
+                await search_doc.insert()
         else:
-            await search_doc.insert()
+            logger.info(f"No result found for {query} on PCGW.")
 
     total_results = len(full_result)
 

@@ -98,6 +98,30 @@ async def test_search_invalid_key(async_client):
 
 
 @pytest.mark.asyncio
+async def test_search_empty_no_cache(
+    async_client, auth_headers, mock_database_documents
+):
+    mock_search, _ = mock_database_documents
+    fake_empty_pcgw = MagicMock()
+    fake_empty_pcgw.search_game = AsyncMock(return_value={"result": []})
+    app.dependency_overrides[get_pcgw] = lambda: fake_empty_pcgw
+
+    response = await async_client.get("/api/search?query=blah", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json() == {
+        "total": 0,
+        "limit": 10,
+        "offset": 0,
+        "result": [],
+    }
+
+    mock_search.return_value.insert.assert_not_called()
+    mock_search.return_value.replace.assert_not_called()
+
+    app.dependency_overrides[get_pcgw] = fake_get_pcgw
+
+
+@pytest.mark.asyncio
 async def test_get_game_data(async_client, auth_headers):
     response = await async_client.get("/api/game/123/game-data", headers=auth_headers)
     assert response.status_code == 200

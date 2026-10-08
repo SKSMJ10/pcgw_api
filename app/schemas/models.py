@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, RootModel
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from beanie import Document
 
 
@@ -76,9 +76,9 @@ class TaxonomyData(RootModel):
 class InfoResponse(BaseModel):
     name: str
     developers: list[str]
-    engines: list[str] | None
+    engines: list[str] | None = None
     released: dict[str, date | str]
-    publishers: list[str] | None
+    publishers: list[str] | None = None
     taxonomy: TaxonomyData
 
 
@@ -96,7 +96,7 @@ class SearchResponse(BaseModel):
 
 class GameDocument(Document):
     id: int = Field(alias="_id")
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     name: str
     game_data: dict[str, ConfigSaveData]
     video: dict[str, Feature]
@@ -112,7 +112,7 @@ class GameDocument(Document):
 
 class SearchDocument(Document):
     id: str = Field(alias="_id")
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     result: list[SearchResult]
 
     class Settings:
