@@ -1,7 +1,7 @@
 import logging
 import httpx
 import sentry_sdk
-from fastapi import APIRouter, Request, Depends, HTTPException, status
+from fastapi import APIRouter, Request, Depends, Query, HTTPException, status
 from datetime import datetime, timedelta, UTC
 from pydantic import ValidationError
 from app.api.auth import verify_api_key
@@ -78,7 +78,15 @@ async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) ->
 
 @router.get(path="/search", response_model=SearchResponse)
 async def search(
-    query: str, limit: int = 10, offset: int = 0, pcgw: PCGamingWiki = Depends(get_pcgw)
+    query: str = Query(pattern=r"\S", description="Search for the page title"),
+    limit: int = Query(
+        default=10,
+        ge=0,
+        le=100,
+        description="Number of results to return. 0 returns all",
+    ),
+    offset: int = Query(default=0, ge=0, description="Pagination's Offset"),
+    pcgw: PCGamingWiki = Depends(get_pcgw),
 ):
     query_id = query.strip().lower()
     cached_search = await SearchDocument.get(query_id)
@@ -96,7 +104,7 @@ async def search(
             logger.error(f"Timeout while searching PCGW for '{query}'.")
             sentry_sdk.capture_exception(exc)
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, RuntimeError) as exc:
             logger.error(f"Error while searching PCGW for '{query}': {exc}")
             sentry_sdk.capture_exception(exc)
             raise HTTPException(

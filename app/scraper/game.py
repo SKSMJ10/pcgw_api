@@ -3,8 +3,7 @@ import httpx
 from asyncio import TaskGroup
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
-from app.scraper.utils import sluggify, limiter, is_transient
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from app.scraper.utils import sluggify, request_with_retries
 
 
 class Game:
@@ -19,12 +18,6 @@ class Game:
         self._info_loaded = None
         self._page_loaded = False
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(1, min=2, max=10),
-        retry=retry_if_exception(is_transient),
-        reraise=True,
-    )
     async def download_page(self):
         if self._page_loaded:
             return
@@ -35,9 +28,9 @@ class Game:
             "pageid": f"{self.pid}",
             "prop": "text",
         }
-        async with limiter:
-            response = await self.session.get(self.API, params=params)
-            response.raise_for_status()
+        response = await request_with_retries(
+            self.session, "GET", self.API, params=params
+        )
 
         response_data = response.json().get("parse", {})
         if not response_data:
@@ -151,16 +144,8 @@ class Game:
         release_dates = cleaned.get("released", []) or ["TBA"]
 
         cleaned["released"] = dict(zip(platforms, release_dates))
-
-        del cleaned["released__precision"], cleaned["Available on"]
         return cleaned
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(1, min=2, max=10),
-        retry=retry_if_exception(is_transient),
-        reraise=True,
-    )
     async def info(self) -> dict:
         if self._info_loaded:
             return self._info_loaded
@@ -173,9 +158,9 @@ class Game:
             "where": f'Game._pageID="{self.pid}"',
         }
 
-        async with limiter:
-            response = await self.session.get(self.API, params=params)
-            response.raise_for_status()
+        response = await request_with_retries(
+            self.session, "GET", self.API, params=params
+        )
         result = self.clean_cargo_query(response.json())
 
         self._info_loaded = result

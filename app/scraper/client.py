@@ -1,9 +1,8 @@
 import httpx
 import logging
 from app.scraper.game import Game
-from app.scraper.utils import limiter, is_transient
+from app.scraper.utils import request_with_retries
 from app.core.config import settings
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -46,42 +45,34 @@ class PCGamingWiki:
         else:
             reason = result.get("reason", "Unknown error")
             logger.error(f"Login failed: {reason}")
-            raise httpx.HTTPStatusError(
-                message=f"Authentication Failed: {result['message']}",
-                request=login_res.request,
-                response=login_res,
-            )
+            raise RuntimeError(f"Authentication Failed: {reason}")
 
     def get_game(self, pid: int):
         return Game(pid, self.client, BASE_URL=self.BASE_URL, API=self.API)
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(1, min=2, max=10),
-        retry=retry_if_exception(is_transient),
-        reraise=True,
-    )
     async def search_game(self, query: str):
-        final_query = query.replace("'", "\\'")
-
         params = {
-            "action": "cargoquery",
+            "action": "query",
             "format": "json",
-            "tables": "Game",
-            "fields": "Game._pageName=name,Game._pageID=page_id",
-            "where": f"Game._pageName LIKE '%{final_query}%'",
-            "limit": "max",
+            "formatversion": 2,
+            "list": "search",
+            "srsearch": query,
+            "srlimit": "max",  # default is 10, just putting it explicitly
+            "srnamespace": 0,  # default is 0 i.e. main articles
         }
 
-        if not limiter.has_capacity():
-            logger.warning(
-                f"Rate limit reached. Pausing search request for '{query}'..."
-            )
-        async with limiter:
-            response = await self.client.get(self.API, params=params)
-            response.raise_for_status()
+        response = await request_with_retries(
+            self.client, "GET", self.API, params=params
+        )
+
+        data = response.json()
+        if "error" in data:
+            error_info = data["error"].get("info", "Unknown Mediawiki Error.")
+            raise RuntimeError(f"PCGW Search failed: {error_info}")
 
         cleaned_response = {"result": []}
-        for data in response.json().get("cargoquery", []):
-            cleaned_response["result"].append(data["title"])
+        for item in data.get("query", {}).get("search", []):
+            cleaned_response["result"].append(
+                {"name": item["title"], "page_id": item["pageid"]}
+            )
         return cleaned_response

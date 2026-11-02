@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field
 from datetime import date, datetime, UTC
 from beanie import Document
+
+type ConfigSaveData = list[tuple[str, str]] | None
 
 
 class Health(BaseModel):
@@ -21,10 +23,6 @@ class VideoResponse(BaseModel):
 class AudioResponse(BaseModel):
     name: str
     audio: dict[str, Feature]
-
-
-class ConfigSaveData(RootModel):
-    root: list[tuple[str, str]] | None
 
 
 class GameDataResponse(BaseModel):
@@ -61,25 +59,13 @@ class ApiMiddlewareResponse(BaseModel):
     middleware: dict[str, MiddlewareData]
 
 
-class MarkdownLinks(RootModel):
-    root: list[str] = Field(
-        title="List of markdown links",
-        description="A list of markdown links with contextual field's name and it's respective PCGW's wikipage.",
-        examples="[SpeedTree](https://www.pcgamingwiki.com/wiki/SpeedTree)",
-    )
-
-
-class TaxonomyData(RootModel):
-    root: dict[str, MarkdownLinks]
-
-
 class InfoResponse(BaseModel):
     name: str
     developers: list[str]
     engines: list[str] | None = None
     released: dict[str, date | str]
     publishers: list[str] | None = None
-    taxonomy: TaxonomyData
+    taxonomy: dict[str, list[str]]
 
 
 class SearchResult(BaseModel):

@@ -7,10 +7,8 @@ from app.scraper.game import Game
 
 @pytest.fixture(autouse=True)
 def mock_rate_limiter():
-    with patch("app.scraper.client.limiter") as mock:
-        mock.has_capacity.return_value = True
-        mock.__aenter__ = AsyncMock(return_value=None)
-        mock.__aexit__ = AsyncMock(return_value=None)
+    mock = AsyncMock()
+    with patch("app.scraper.utils.limiter", mock):
         yield mock
 
 
@@ -18,6 +16,16 @@ def mock_rate_limiter():
 def mock_httpx_client():
     client = MagicMock(spec=httpx.AsyncClient)
     client.get = AsyncMock()
+    client.post = AsyncMock()
+
+    async def fake_request(method, url, **kwargs):
+        if method.upper() == "GET":
+            return await client.get(url, **kwargs)
+        elif method.upper() == "POST":
+            return await client.post(url, **kwargs)
+        raise NotImplementedError
+
+    client.request = AsyncMock(side_effect=fake_request)
     return client
 
 
@@ -46,49 +54,50 @@ def test_get_game_returns_game_instance(pcgw_client, mock_httpx_client):
 
 @pytest.mark.asyncio
 async def test_search_game_success(pcgw_client, mock_httpx_client):
-    cargo_data = {
-        "cargoquery": [
-            {"title": {"name": "Cyberpunk 2077", "page_id": "1091500"}},
-            {
-                "title": {
-                    "name": "Cyberpunk 2077: Phantom Liberty",
-                    "page_id": "2104523",
-                }
-            },
-        ]
+    search_data = {
+        "query": {
+            "search": [
+                {"title": "Cyberpunk 2077", "pageid": 1091500},
+                {
+                    "title": "Cyberpunk 2077: Phantom Liberty",
+                    "pageid": 2104523,
+                },  # PCGW page of this does not exist as its a dlc, this is just to populate the test data
+            ],
+        }
     }
-    mock_httpx_client.get.return_value = create_response(200, cargo_data)
+    mock_httpx_client.get.return_value = create_response(200, search_data)
 
-    result = await pcgw_client.search_game("Cyberpunk")
+    result = await pcgw_client.search_game("Cyberpunk 2077")
 
     assert result == {
         "result": [
-            {"name": "Cyberpunk 2077", "page_id": "1091500"},
-            {"name": "Cyberpunk 2077: Phantom Liberty", "page_id": "2104523"},
+            {"name": "Cyberpunk 2077", "page_id": 1091500},
+            {"name": "Cyberpunk 2077: Phantom Liberty", "page_id": 2104523},
         ]
     }
     mock_httpx_client.get.assert_called_once_with(
         PCGamingWiki.API,
         params={
-            "action": "cargoquery",
+            "action": "query",
             "format": "json",
-            "tables": "Game",
-            "fields": "Game._pageName=name,Game._pageID=page_id",
-            "where": "Game._pageName LIKE '%Cyberpunk%'",
-            "limit": "max",
+            "formatversion": 2,
+            "list": "search",
+            "srsearch": "Cyberpunk 2077",
+            "srlimit": "max",  # default is 10, just putting it explicitly
+            "srnamespace": 0,
         },
     )
 
 
 @pytest.mark.asyncio
-async def test_search_game_escapes_single_quotes(pcgw_client, mock_httpx_client):
-    mock_httpx_client.get.return_value = create_response(200, {"cargoquery": []})
+async def test_search_game_with_special_characters(pcgw_client, mock_httpx_client):
+    mock_httpx_client.get.return_value = create_response(200, {"query": {"search": []}})
 
     result = await pcgw_client.search_game("Assassin's Creed")
 
     assert result == {"result": []}
     _, kwargs = mock_httpx_client.get.call_args
-    assert kwargs["params"]["where"] == "Game._pageName LIKE '%Assassin\\'s Creed%'"
+    assert kwargs["params"]["srsearch"] == "Assassin's Creed"
 
 
 @pytest.mark.asyncio
@@ -103,7 +112,7 @@ async def test_search_game_empty_response(pcgw_client, mock_httpx_client):
 @pytest.mark.asyncio
 async def test_search_game_retry_on_transient_error(pcgw_client, mock_httpx_client):
     error_response = create_response(503)
-    success_response = create_response(200, {"cargoquery": []})
+    success_response = create_response(200, {"query": {"search": []}})
 
     http_error = httpx.HTTPStatusError(
         "Service Unavailable", request=error_response.request, response=error_response
@@ -130,3 +139,37 @@ async def test_search_game_no_retry_on_client_error(pcgw_client, mock_httpx_clie
 
     # 404 status error is not transient; it must fail immediately without retry
     assert mock_httpx_client.get.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_login_failure_raises_clean_error(pcgw_client, mock_httpx_client):
+    token_resp = create_response(200, {"query": {"tokens": {"logintoken": "token123"}}})
+    login_fail_resp = create_response(
+        200, {"login": {"result": "Failed", "reason": "Incorrect password"}}
+    )
+
+    mock_httpx_client.get.return_value = token_resp
+    mock_httpx_client.post.return_value = login_fail_resp
+
+    with pytest.raises(Exception) as exc_info:
+        await pcgw_client.login()
+
+    assert "Incorrect password" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_search_game_upstream_error_raises_runtime_error(
+    pcgw_client, mock_httpx_client
+):
+    error_payload = {
+        "error": {
+            "code": "missingparam",
+            "info": 'The "srsearch" parameter must be set.',
+        }
+    }
+    mock_httpx_client.get.return_value = create_response(200, error_payload)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await pcgw_client.search_game("Cyberpunk")
+
+    assert 'The "srsearch" parameter must be set.' in str(exc_info.value)
