@@ -139,6 +139,11 @@ async def search(
     return final_data
 
 
+@router.get(path="/game/{page_id}", response_model=GameDocument)
+async def get_game(data: dict = Depends(get_game_data)):
+    return data
+
+
 @router.get(path="/game/{page_id}/game-data", response_model=GameDataResponse)
 async def game_data_config(data: dict = Depends(get_game_data)):
     return {"name": data["name"], "config": data.get("game_data", {})}

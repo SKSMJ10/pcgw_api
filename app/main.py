@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 # Sentry setup
 sentry_sdk.init(
     dsn=settings.sentry_dsn,
-    send_default_pii=True,
     enable_logs=True,
     traces_sample_rate=1.0,
 )
@@ -35,13 +34,17 @@ async def lifespan(app: FastAPI):
     logger.info("HTTP client initialized successfully!")
 
     # Initialize PCGW Client
-    if settings.pcgw_user and settings.pcgw_pass:
-        app.state.pcgw = PCGamingWiki(client=app.state.http_client)
-        try:
-            await app.state.pcgw.login()
-        except Exception as e:
-            logger.error(f"Failed to log in to PCGW: {e}")
-            raise
+    if not settings.pcgw_user or not settings.pcgw_pass:
+        raise RuntimeError(
+            "PCGW_USER and PCGW_PASS must be configured in .env to connect to PCGW."
+        )
+
+    app.state.pcgw = PCGamingWiki(client=app.state.http_client)
+    try:
+        await app.state.pcgw.login()
+    except Exception as e:
+        logger.error(f"Failed to log in to PCGW: {e}")
+        raise
 
     try:
         await client.admin.command("ping")
@@ -69,7 +72,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="PCGamingWiki API",
-    version="0.1",
+    version="0.2",
     lifespan=lifespan,
     docs_url=None,
     redoc_url=None,

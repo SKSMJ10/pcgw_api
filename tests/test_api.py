@@ -122,6 +122,14 @@ async def test_search_empty_no_cache(
 
 
 @pytest.mark.asyncio
+async def test_get_game(async_client, auth_headers):
+    response = await async_client.get("/api/game/123", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Test Game"
+
+
+@pytest.mark.asyncio
 async def test_get_game_data(async_client, auth_headers):
     response = await async_client.get("/api/game/123/game-data", headers=auth_headers)
     assert response.status_code == 200

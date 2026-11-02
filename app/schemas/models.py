@@ -38,7 +38,7 @@ class ApiData(BaseModel):
 
 class ExecutableData(BaseModel):
     name: str
-    version: list | str
+    version: list[str] | str
     notes: str | None
 
 
