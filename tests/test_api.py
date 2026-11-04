@@ -1,6 +1,7 @@
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
+from datetime import datetime, UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.main import app
 from app.core.config import settings
@@ -8,6 +9,7 @@ from app.api.routes import get_pcgw
 
 # Sample data
 SAMPLE_GAME_DATA = {
+    "_id": 123,
     "name": "Test Game",
     "game_data": {"config": [("Windows", "Path/to/whatever")]},
     "video": {},
@@ -15,7 +17,12 @@ SAMPLE_GAME_DATA = {
     "api": {},
     "executable": {},
     "middleware": {},
-    "info": {},
+    "info": {
+        "name": "Test Game",
+        "developers": ["Test Dev"],
+        "released": {"Windows": "2026-01-01"},
+        "taxonomy": {"Genre": ["Action"]},
+    },
 }
 
 SAMPLE_SEARCH_DATA = {"result": [{"name": "Test Game", "page_id": 123}]}
@@ -127,6 +134,7 @@ async def test_get_game(async_client, auth_headers):
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Game"
+    assert data["id"] == 123
 
 
 @pytest.mark.asyncio
@@ -151,3 +159,67 @@ async def test_delete_game(async_client, auth_headers, mock_database_documents):
     response = await async_client.delete("/api/game/123", headers=auth_headers)
     assert response.status_code == 204
     mock_game_instance.delete.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_game_force_refresh(
+    async_client, auth_headers, mock_database_documents
+):
+    _, mock_game = mock_database_documents
+
+    # Simulate cached game in DB
+    cached_doc = MagicMock()
+    cached_doc.updated_at = datetime.now(UTC)
+    cached_doc.model_dump.return_value = {
+        **SAMPLE_GAME_DATA,
+        "name": "Cached Game",
+    }
+    mock_game.get = AsyncMock(return_value=cached_doc)
+
+    fake_pcgw = fake_get_pcgw()
+    app.dependency_overrides[get_pcgw] = lambda: fake_pcgw
+
+    # 1. Normal request returns cached game without calling pcgw
+    resp_cached = await async_client.get("/api/game/123", headers=auth_headers)
+    assert resp_cached.status_code == 200
+    assert resp_cached.json()["name"] == "Cached Game"
+    fake_pcgw.get_game.assert_not_called()
+
+    # 2. force_refresh=true bypasses cache and calls pcgw
+    resp_fresh = await async_client.get(
+        "/api/game/123?force_refresh=true", headers=auth_headers
+    )
+    assert resp_fresh.status_code == 200
+    fake_pcgw.get_game.assert_called_once_with(pid=123)
+
+    app.dependency_overrides[get_pcgw] = fake_get_pcgw
+
+
+@pytest.mark.asyncio
+async def test_search_force_refresh(
+    async_client, auth_headers, mock_database_documents
+):
+    mock_search, _ = mock_database_documents
+
+    cached_search = MagicMock()
+    cached_search.updated_at = datetime.now(UTC)
+    cached_search.result = [{"name": "Cached Result", "page_id": 999}]
+    mock_search.get = AsyncMock(return_value=cached_search)
+
+    fake_pcgw = fake_get_pcgw()
+    app.dependency_overrides[get_pcgw] = lambda: fake_pcgw
+
+    # 1. Normal request uses cache
+    resp_cached = await async_client.get("/api/search?query=test", headers=auth_headers)
+    assert resp_cached.status_code == 200
+    assert resp_cached.json()["result"][0]["name"] == "Cached Result"
+    fake_pcgw.search_game.assert_not_called()
+
+    # 2. force_refresh=true bypasses cache
+    resp_fresh = await async_client.get(
+        "/api/search?query=test&force_refresh=true", headers=auth_headers
+    )
+    assert resp_fresh.status_code == 200
+    fake_pcgw.search_game.assert_called_once_with("test")
+
+    app.dependency_overrides[get_pcgw] = fake_get_pcgw

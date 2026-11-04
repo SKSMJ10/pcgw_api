@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import date, datetime, UTC
 from beanie import Document
 
@@ -78,6 +78,20 @@ class SearchResponse(BaseModel):
     limit: int
     offset: int
     result: list[SearchResult]
+
+
+class GameResponse(BaseModel):
+    id: int = Field(validation_alias="_id")
+    name: str
+    game_data: dict[str, ConfigSaveData]
+    video: dict[str, Feature]
+    audio: dict[str, Feature]
+    info: InfoResponse
+    api: dict[str, ApiData]
+    executable: dict[str, ExecutableData]
+    middleware: dict[str, MiddlewareData] | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class GameDocument(Document):

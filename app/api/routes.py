@@ -13,6 +13,7 @@ from app.schemas.models import (
     InfoResponse,
     SearchResponse,
     GameDataResponse,
+    GameResponse,
     GameDocument,
     SearchDocument,
 )
@@ -25,19 +26,31 @@ def get_pcgw(request: Request) -> PCGamingWiki:
     return request.app.state.pcgw
 
 
-async def get_game_data(page_id: int, pcgw: PCGamingWiki = Depends(get_pcgw)) -> dict:
+async def get_game_data(
+    page_id: int,
+    force_refresh: bool = Query(
+        default=False,
+        description="Force fetch the fresh data from PCGW, bypassing the cache",
+    ),
+    pcgw: PCGamingWiki = Depends(get_pcgw),
+) -> dict:
     # beanie can query with the data model itself, neat stuff
     cached_game = await GameDocument.get(page_id)
 
-    if cached_game and (
-        datetime.now(UTC) - cached_game.updated_at <= timedelta(days=7)
+    if (
+        not force_refresh
+        and cached_game
+        and (datetime.now(UTC) - cached_game.updated_at <= timedelta(days=7))
     ):
         logger.info(f"Fetched {page_id}'s gamedata from DB")
         validated_game = cached_game
     else:
-        logger.info(
-            f"{page_id}'s gamedata not found or the gamedata is too old. Getting fresh gamedata..."
-        )
+        if force_refresh and cached_game:
+            logger.info(f"Force refresh requested for {page_id}. Bypassing cache...")
+        else:
+            logger.info(
+                f"{page_id}'s gamedata not found or the gamedata is too old. Getting fresh gamedata..."
+            )
         try:
             game = pcgw.get_game(pid=page_id)
             all_data = await game.get_all()
@@ -86,18 +99,29 @@ async def search(
         description="Number of results to return. 0 returns all",
     ),
     offset: int = Query(default=0, ge=0, description="Pagination's Offset"),
+    force_refresh: bool = Query(
+        default=False,
+        description="Force fetch fresh search results from PCGamingWiki, bypassing cache",
+    ),
     pcgw: PCGamingWiki = Depends(get_pcgw),
 ):
     query_id = query.strip().lower()
     cached_search = await SearchDocument.get(query_id)
 
-    if cached_search and (
-        datetime.now(UTC) - cached_search.updated_at <= timedelta(days=7)
+    if (
+        not force_refresh
+        and cached_search
+        and (datetime.now(UTC) - cached_search.updated_at <= timedelta(days=7))
     ):
         logger.info(f"Fetched search '{query}' from DB")
         full_result = cached_search.result
     else:
-        logger.info(f"No result found for {query} in the DB. Getting fresh data...")
+        if force_refresh and cached_search:
+            logger.info(
+                f"Force refresh requested for search '{query}'. Bypassing cache..."
+            )
+        else:
+            logger.info(f"No result found for {query} in the DB. Getting fresh data...")
         try:
             data = await pcgw.search_game(query)
         except httpx.TimeoutException as exc:
@@ -139,7 +163,7 @@ async def search(
     return final_data
 
 
-@router.get(path="/game/{page_id}", response_model=GameDocument)
+@router.get(path="/game/{page_id}", response_model=GameResponse)
 async def get_game(data: dict = Depends(get_game_data)):
     return data
 
