@@ -1,6 +1,10 @@
+from typing import ClassVar
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import date, datetime, UTC
 from beanie import Document
+from pymongo import ASCENDING, IndexModel
+
+TTL_7_DAYS = 604800  # 7 * 24 * 60 * 60 seconds
 
 type ConfigSaveData = list[tuple[str, str]] | None
 
@@ -108,6 +112,13 @@ class GameDocument(Document):
 
     class Settings:
         name = "games"
+        indexes: ClassVar[list[IndexModel]] = [
+            IndexModel(
+                [("updated_at", ASCENDING)],
+                expireAfterSeconds=TTL_7_DAYS,
+                name="ttl_game_updated_at_7d",
+            )
+        ]
 
 
 class SearchDocument(Document):
@@ -117,3 +128,10 @@ class SearchDocument(Document):
 
     class Settings:
         name = "searches"
+        indexes: ClassVar[list[IndexModel]] = [
+            IndexModel(
+                [("updated_at", ASCENDING)],
+                expireAfterSeconds=TTL_7_DAYS,
+                name="ttl_search_updated_at_7d",
+            )
+        ]
