@@ -4,7 +4,7 @@ from datetime import date, datetime, UTC
 from beanie import Document
 from pymongo import ASCENDING, IndexModel
 
-TTL_7_DAYS = 604800  # 7 * 24 * 60 * 60 seconds
+TTL_7_DAYS = 604800
 
 type ConfigSaveData = list[tuple[str, str]] | None
 
