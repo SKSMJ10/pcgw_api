@@ -52,6 +52,7 @@ def mock_database_documents():
         mock_search_instance = MagicMock()
         mock_search_instance.insert = AsyncMock()
         mock_search_instance.replace = AsyncMock()
+        mock_search_instance.save = AsyncMock()
         mock_search.return_value = mock_search_instance
 
         # Fake GameDocument
@@ -59,6 +60,7 @@ def mock_database_documents():
         mock_game_instance = MagicMock()
         mock_game_instance.insert = AsyncMock()
         mock_game_instance.replace = AsyncMock()
+        mock_game_instance.save = AsyncMock()
         mock_game_instance.delete = AsyncMock()
         mock_game_instance.model_dump.return_value = SAMPLE_GAME_DATA
         mock_game.return_value = mock_game_instance
@@ -122,8 +124,7 @@ async def test_search_empty_no_cache(
         "result": [],
     }
 
-    mock_search.return_value.insert.assert_not_called()
-    mock_search.return_value.replace.assert_not_called()
+    mock_search.return_value.save.assert_not_called()
 
     app.dependency_overrides[get_pcgw] = fake_get_pcgw
 

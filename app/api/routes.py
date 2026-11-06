@@ -81,10 +81,7 @@ async def get_game_data(
                 status_code=502, detail="Bad Gateway: PCGamingWiki error"
             )
 
-        if cached_game:
-            await validated_game.replace()
-        else:
-            await validated_game.insert()
+        await validated_game.save()
 
     return validated_game.model_dump(by_alias=True)
 
@@ -139,10 +136,7 @@ async def search(
 
         if full_result:
             search_doc = SearchDocument(id=query_id, result=full_result)
-            if cached_search:
-                await search_doc.replace()
-            else:
-                await search_doc.insert()
+            await search_doc.save()
         else:
             logger.info(f"No result found for {query} on PCGW.")
 

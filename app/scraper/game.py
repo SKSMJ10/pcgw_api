@@ -31,12 +31,17 @@ class Game:
         response = await request_with_retries(
             self.session, "GET", self.API, params=params
         )
+        response_data = response.json()
+        if "error" in response_data:
+            err_info = response_data["error"].get("info", "Unknown Mediawiki error.")
+            raise RuntimeError(f"PCGW Parse error: {err_info}")
 
-        response_data = response.json().get("parse", {})
-        if not response_data:
+        data = response_data.get("parse", {})
+
+        if not data:
             raise ValueError(f"No parse data found for {self.pid}.")
 
-        content, self._title = response_data["text"]["*"], response_data["title"]
+        content, self._title = data["text"]["*"], data["title"]
         self._soup = BeautifulSoup(content, "html.parser")
         self._page_loaded = True
 
@@ -161,7 +166,11 @@ class Game:
         response = await request_with_retries(
             self.session, "GET", self.API, params=params
         )
-        result = self.clean_cargo_query(response.json())
+        data = response.json()
+        if "error" in data:
+            err_info = data["error"].get("info", "Unknown Mediawiki Error.")
+            raise RuntimeError(f"PCGW CargoQuery error: {err_info}")
+        result = self.clean_cargo_query(data)
 
         self._info_loaded = result
         return self._info_loaded
