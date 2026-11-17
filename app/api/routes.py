@@ -74,7 +74,7 @@ async def get_game_data(
             sentry_sdk.capture_exception(exc)
             raise HTTPException(status_code=504, detail="PCGamingWiki API timeout")
 
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, RuntimeError) as exc:
             logger.error(f"Error while connecting to PCGW for game {page_id}: {exc}")
             sentry_sdk.capture_exception(exc)
             raise HTTPException(

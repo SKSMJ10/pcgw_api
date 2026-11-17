@@ -1,6 +1,6 @@
 import re
 import httpx
-from asyncio import TaskGroup
+import asyncio
 from bs4 import BeautifulSoup, Tag
 from urllib.parse import urljoin
 from app.scraper.utils import sluggify, request_with_retries
@@ -125,12 +125,8 @@ class Game:
 
     def clean_cargo_query(self, response: dict) -> dict:
         cargo_query = response.get("cargoquery", [])
-        if not cargo_query:
-            return {}
-        else:
-            cleaned = cargo_query[0].get("title", {})
-            if not cleaned:
-                return {}
+        if not cargo_query or not (cleaned := cargo_query[0].get("title")):
+            raise ValueError(f"No cargo gamedata found for {self.pid}.")
 
         for key, value in cleaned.items():
             if key == "name":
@@ -307,13 +303,11 @@ class Game:
         return result
 
     async def get_all(self) -> dict:
-        async with TaskGroup() as tg:
-            tg.create_task(self.download_page())
-            info_task = tg.create_task(self.info())
+        await asyncio.gather(self.download_page(), self.info())
 
         api_mw_data = self.api_middleware()
 
-        final_info = info_task.result()
+        final_info = self._info_loaded
         final_info["taxonomy"] = self.get_taxonomy()
 
         return {
